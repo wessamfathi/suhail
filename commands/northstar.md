@@ -85,6 +85,7 @@ Prepend every scout/executer/verifier dispatch with:
   "current_batch": [],
   "batch_auto_approve": false,
   "batch_scouted_levels": [],
+  "parts_pending_verification": [],  // Parts that finished executing but verifiers not yet dispatched in this batch cycle
   "current_part_id": "part-1",
   "current_step": "pending",
   "max_retries": 3,
@@ -109,7 +110,7 @@ Prepend every scout/executer/verifier dispatch with:
 }
 ```
 
-`run_phase` values: `init | batch_scouting | master_plan_approval | executing | completed | aborted`. Per-Part status: `pending → scouting → awaiting_plan_approval → executing → verifying → needs_user → completed | skipped`. Always update `updated_at`; always write the full file.
+`run_phase` values: `init | batch_scouting | master_plan_approval | executing | batch_verifying | completed | aborted`. Per-Part status: `pending → scouting → awaiting_plan_approval → executing → executed → verifying → needs_user → completed | skipped`. Always update `updated_at`; always write the full file.
 
 ## Output verification (after every dispatch)
 
@@ -198,9 +199,28 @@ On resolution: `Approve all` → `batch_auto_approve = true`, mark Parts `execut
    ```
 2. Output verification. On failure → blocker.md, `needs_user`, end turn.
 3. Read execution.md. Extract `## Files changed`; update `parts[N].files_changed`. Empty list + non-trivial steps → blocker.
-4. Set status `verifying`, write `state.json`, re-tick.
+4. Set status `executed`. Append Part id to `state.parts_pending_verification`. Write `state.json`. Re-tick. (The tick script decides whether to emit `dispatch_executer` for the next Part in the batch or `start_batch_verifying` once all batch Parts are `executed`.)
+
+### `start_batch_verifying`
+**Precondition:** all Parts in `current_batch` must have status `executed`. This handler is only emitted by the tick script once that condition holds.
+
+For each Part id in `parts_pending_verification` (integer-sorted):
+
+1. **Diff-capture:** surface untracked new files via `git add -N <new-files>` for any `??` file in the changed list (skip if not a git repo). Compute `git diff --stat <files>` and write `git diff <files> > .northstar/parts/part-N/diff-attempt-K.patch`.
+2. **Trivial fast path:** if `parts[part_id].trivial == true`: scan `diff-attempt-K.patch` for credential patterns (same table as in `dispatch_verifier` step 1b). If no hits: write `review.md` and `audit.md` inline with `## Verdict\nclean\n\nTrivial Part — fast-path review.` Mark Part status `completed`. Exclude from parallel dispatch. Narrate: "Part N is trivial — skipping verifier, regex audit passed." If any hit: narrate "Part N is trivial — skipping verifier, regex audit flagged." Include in parallel dispatch list.
+
+For all non-trivial (and flagged-trivial) Parts remaining — build the parallel dispatch list:
+
+3. Emit all verifier `Agent(...)` calls in one assistant turn (same prompt shape as `dispatch_verifier` step 3). Set each Part's status to `verifying`. Set `run_phase = "batch_verifying"`. Clear `parts_pending_verification = []`. Write `state.json`. Narrate: "Verifying level L — dispatching M verifiers in parallel: Part a, Part b, …"
+
+After all verifier `Agent(...)` calls return:
+
+4. **Output verification per Part:** check `review.md` and `audit.md` exist and contain `## Verdict` sentinel. On failure for a Part: write `blocker.md` (`from: orchestrator`, options `["Retry this subagent", "Show what the subagent wrote", "Skip Part", "Abort run"]`), set that Part's status to `needs_user`. **Do NOT block siblings** — continue processing remaining Parts.
+5. **Verdict aggregation per Part:** parse `## Verdict` worst-of from `review.md` + `audit.md`. If combined = `blockers` AND `attempts < max_retries`: increment `attempts`, reset status to `executing`. If combined = `blockers` AND exhausted: set status `needs_user`, AskUserQuestion per Part. Otherwise: set status `completed`.
+6. Write `state.json`. Re-tick.
 
 ### `dispatch_verifier`
+**Note:** this handler is reached only for single-Part levels or retry dispatches (where `start_batch_verifying` is not in play). The diff-capture step is retained here for those cases.
 1. Surface untracked new files: `git add -N <new-files>` for any `??` file in the changed list (skip if not a git repo). Compute `git diff --stat <files>` and `git diff <files> > .northstar/parts/part-N/diff-attempt-K.patch`.
 1b. **Trivial fast path:** if `parts[current_part_id].trivial == true`: scan `diff-attempt-K.patch` for credential patterns:
 
@@ -263,7 +283,7 @@ Regenerate on every state mutation:
 Northstar v0.7.0 · Last tick: <updated_at> · Mode: <mode> · Current: <CURRENT_LINE>
 ```
 
-`<CURRENT_LINE>`: `batch_scouting` → `scouting batch [part-a, ...] (level L)` · `master_plan_approval` → `awaiting master plan approval for [part-a, ...] (level L)` · otherwise → `Part N (status, attempt K/max_retries)`.
+`<CURRENT_LINE>`: `batch_scouting` → `scouting batch [part-a, ...] (level L)` · `master_plan_approval` → `awaiting master plan approval for [part-a, ...] (level L)` · `batch_verifying` → `verifying batch [part-a, ...] (level L)` · otherwise → `Part N (status, attempt K/max_retries)`.
 
 ```markdown
 ## Progress
@@ -323,6 +343,6 @@ Never commit, push, or deploy. On user choosing "Commit first": `git add <files-
 - Don't write product code. Subagents do that.
 - **Don't improvise on behalf of a subagent.** Missing/malformed artifact → blocker.md + pause. Never fabricate research, plans, execution summaries, or verdicts.
 - Don't skip output verification after any dispatch.
-- Don't call subagents in parallel except: (1) `batch_scouting` per-level scouts, (2) B6 pipelined verifier+scout in auto-advance mode. Executers are strictly serial.
+- Don't call subagents in parallel except: (1) `batch_scouting` per-level scouts, (2) B6 pipelined verifier+scout in auto-advance mode, (3) `batch_verifying` parallel verifier dispatches. Executers are strictly serial.
 - Don't delete `.northstar/` artifacts, even on `abort`.
 - Don't echo subagent prompt text or full artifact bodies back to the user.
