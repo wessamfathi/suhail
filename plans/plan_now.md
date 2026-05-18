@@ -44,7 +44,7 @@ The model resolves the contradiction by reading everything. Across 10 Parts that
 
 **Fix:** add an "Approve and auto-advance until next blocker" option to both AskUserQuestions. Equivalent to flipping `mode = "run-to"` with the run-to target set to the last Part. Cost: nothing structural; promotes an existing capability into the default question UI.
 
-### A5. Model asymmetry
+### \* A5. Model asymmetry
 
 `agents/executer.md:5` uses `model: opus`. Everyone else is `sonnet`. Opus is correct for executer (writes code). But:
 
@@ -324,20 +324,20 @@ Alternative: a `scripts/northstar-index.sh` that:
 - **B8: Prompt caching audit.** Check whether Claude Code already caches subagent system prompts. If not, it may be a config flip. This is a 30-minute investigation, potentially the largest single win.
 
 ### Phase 1 — Surgical wins (1–2 days work, low risk)
-- **A1: Parallelize reviewer + auditor.** Single state-machine edit.
-- **A2: Conditional researcher step 1.** Single agent-file edit.
-- **A3: Skip auditor on no-surface diffs.** Single state-machine edit + heuristic table.
-- **A4: Auto-advance UI option.** Two AskUserQuestion edits.
-- **A6: Trim reviewer input bundle.** Single state-machine edit.
+- **\* A1: Parallelize reviewer + auditor.** Single state-machine edit.
+- **\* A2: Conditional researcher step 1.** Single agent-file edit.
+- **\* A3: Skip auditor on no-surface diffs.** Single state-machine edit + heuristic table.
+- **\* A4: Auto-advance UI option.** Two AskUserQuestion edits.
+- **\* A6: Trim reviewer input bundle.** Single state-machine edit.
 
 Cumulative: roughly halves per-Part wall-clock with no architectural risk.
 
 ### Phase 2 — Structural wins (1 week work, medium risk)
-- **B1: Role collapse (scout + verifier).** Two new agent files; orchestrator state machine simplified. Requires fixture re-verification.
-- **B5: Speculative pre-research during user pauses.** Background dispatch via `run_in_background: true`. New orchestrator logic.
+- **\* B1: Role collapse (scout + verifier).** Two new agent files; orchestrator state machine simplified. Requires fixture re-verification.
+- **\* B5: Speculative pre-research during user pauses.** Background dispatch via `run_in_background: true`. New orchestrator logic.
 - **B7: Trivial-Part fast path.** New classifier at INIT; conditional dispatch logic.
-- **B9: Trim role prompts.** Mechanical edits across all six agent files.
-- **B13: Inline intel into prompts.** Orchestrator caches intel; subagent agent files updated to consume inline first, file as fallback.
+- **\* B9: Trim role prompts.** Mechanical edits across all six agent files.
+- **\* B13: Inline intel into prompts.** Orchestrator caches intel; subagent agent files updated to consume inline first, file as fallback.
 
 Cumulative with Phase 1: ~3–5× speedup on typical plans.
 
