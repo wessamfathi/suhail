@@ -49,7 +49,7 @@ When all fixtures behave as documented, the change is shippable.
 - Update `CHANGELOG.md` under `## [Unreleased]` with a one-line summary.
 - If you changed any role subagent's output schema, update every consumer of that schema (orchestrator parser, dependent subagents, docs). The schema is the contract — breaking it is fine but it must be threaded through.
 - If you added a new role, update `docs/extending.md` to reflect the new template.
-- If you changed the plan format, update both `docs/plan-format.md` and the parser in `commands/northstar.md`.
+- If you changed the plan format, update both `docs/plan-format.md` and the parser in `commands/ns.md`.
 - If you changed user-visible behavior, update `README.md`.
 
 ## Releasing
