@@ -33,7 +33,7 @@ You also ensure the following directories exist (create if missing, do not touch
 
 - `.northstar/`
 - `.northstar/intel/`
-- `plans/`
+- `.northstar/plans/`
 
 ## Process
 
@@ -49,11 +49,19 @@ You also ensure the following directories exist (create if missing, do not touch
      - On **Show summary**: Read each of the four files, emit one line per file in the form `<file> — <first H2 heading after the title>, …`. End the turn.
    - If any are missing, OR `$ARGUMENTS == "refresh"`: proceed to step 4.
 
-4. **Prepare directories.** Ensure `.northstar/`, `.northstar/intel/`, and `plans/` exist. Use Bash:
-   - POSIX: `mkdir -p .northstar/intel plans`
-   - Windows: `New-Item -ItemType Directory -Path .northstar/intel,plans -Force | Out-Null`
+4. **Prepare directories.** Ensure `.northstar/`, `.northstar/intel/`, and `.northstar/plans/` exist. Use Bash:
+   - POSIX: `mkdir -p .northstar/intel .northstar/plans`
+   - Windows: `New-Item -ItemType Directory -Path .northstar/intel,.northstar/plans -Force | Out-Null`
 
-5. **Narrate.** Emit one short sentence: "Indexer: scanning project intel."
+5. **Narrate.** Emit the start card as direct multi-line output to the user, then one narration sentence:
+
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   📦 Indexer · scanning project intel
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ```
+
+   Narrate: "📦 Indexer — dispatching now."
 
 6. **Dispatch the indexer.** Resolve the repo root via Bash (`pwd` on POSIX, `$PWD` on PowerShell) before dispatch so you can pass an absolute path.
    ```
@@ -68,37 +76,33 @@ You also ensure the following directories exist (create if missing, do not touch
    )
    ```
 
-7. **Output verification.** After return, run the verification checklist below. On any failure, treat it as a missing artifact:
+7. **Output verification.** After return, run the following verification checklist. For each file:
+   1. File exists. Use Bash `[ -f path ]` (POSIX) / `Test-Path path` (PowerShell), or Read.
+   2. File is non-empty. A zero-byte or whitespace-only file is a failure.
+   3. Required sentinel headings are present. Use Grep.
+
+   | File | Required sentinels (H2 sections, case-sensitive) |
+   |---|---|
+   | `.northstar/intel/stack.md` | `## Languages and frameworks` AND `## Commands` |
+   | `.northstar/intel/layout.md` | `## Top-level layout` |
+   | `.northstar/intel/conventions.md` | `## House conventions` |
+   | `.northstar/intel/modules.md` | `## Modules` |
+
+   On any failure, treat it as a missing artifact:
    - If `.northstar/intel/blocker.md` exists without a `resolution:` line, surface it via AskUserQuestion using the options in the blocker's frontmatter plus "Other (free text)".
    - Otherwise write `.northstar/intel/blocker.md` yourself with frontmatter `from: orchestrator`, `severity: blocker`, options `["Retry the indexer", "Show what the indexer wrote", "Abort"]`, plus a one-paragraph note naming the failed check (e.g. "Indexer returned without writing modules.md" or "stack.md is missing the required `## Commands` section"). Then end the turn with AskUserQuestion.
+
+   Narrate: "📦 Indexer — verification failed."
 
    Do NOT fabricate intel content. Surface the failure.
 
 8. **Success.** Emit one short sentence per written file pointing at its path:
-   - "Indexer done — see `.northstar/intel/stack.md`."
-   - "Indexer done — see `.northstar/intel/layout.md`."
-   - "Indexer done — see `.northstar/intel/conventions.md`."
-   - "Indexer done — see `.northstar/intel/modules.md`."
+   - "📦 Indexer — done — see `.northstar/intel/stack.md`."
+   - "📦 Indexer — done — see `.northstar/intel/layout.md`."
+   - "📦 Indexer — done — see `.northstar/intel/conventions.md`."
+   - "📦 Indexer — done — see `.northstar/intel/modules.md`."
 
    Then end with AskUserQuestion: "Project intel cached. Options: Run /ns-discover (interview to draft a plan) / Run /ns &lt;plan-path&gt; (execute an existing plan) / Done."
-
-## Output verification
-
-After the indexer returns, verify each of the four files:
-
-| File | Required sentinels (H2 sections, case-sensitive) |
-|---|---|
-| `.northstar/intel/stack.md` | `## Languages and frameworks` AND `## Commands` |
-| `.northstar/intel/layout.md` | `## Top-level layout` |
-| `.northstar/intel/conventions.md` | `## House conventions` |
-| `.northstar/intel/modules.md` | `## Modules` |
-
-For each file:
-1. File exists. Use Bash `[ -f path ]` (POSIX) / `Test-Path path` (PowerShell), or Read.
-2. File is non-empty. A zero-byte or whitespace-only file is a failure.
-3. Required sentinel headings are present. Use Grep.
-
-If any check fails for any file, treat the indexer dispatch as failed and follow step 7 above.
 
 ## Re-run on resolution
 
