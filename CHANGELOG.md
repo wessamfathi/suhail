@@ -2,7 +2,23 @@
 
 All notable changes to Northstar are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.2] — 2026-05-19
+
+### Added
+- `/ns-auto` command: auto-detects the most recent plan under `.northstar/plans/` and runs it in autorun mode. Accepts an optional plan path argument.
+
+### Changed
+- Consolidated `commands/northstar.md` into `commands/ns.md` — `ns.md` is now the single source of truth for the orchestrator prompt; `northstar.md` has been removed.
+- State schema `tool_version` bumped to `0.7.2`.
+
+## [0.7.1] — 2026-05-18
+
+### Added
+- `run_phase: "finished"` terminal state, set automatically when all Parts complete successfully.
+
+### Changed
+- On INIT with a plan path, if `state.json` exists with `run_phase == "finished"` or `aborted == true`, Northstar now prompts once ("Delete its state and start a new run?") and auto-cleans on confirmation — instead of refusing outright.
+- End-of-run AskUserQuestion simplified to `Show summary` / `Done`; removed the `Abort` option (state cleanup now happens automatically on the next `/ns <plan>` invocation).
 
 ## [0.7.0] — 2026-05-17
 
