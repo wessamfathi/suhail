@@ -1,6 +1,6 @@
 ---
 description: Interview the user to capture their vision and write a Northstar-format plan that the rest of the pipeline can execute via /ns.
-argument-hint: [output-path] (optional; defaults to plans/<slug>.md derived from the captured title)
+argument-hint: [output-path] (optional; defaults to .northstar/plans/<slug>.md derived from the captured title)
 ---
 
 # /ns-discover — Northstar Discoverer v0.2.0
@@ -15,7 +15,7 @@ User arguments: `$ARGUMENTS`
 
 | Shape | Meaning |
 |---|---|
-| `(empty)` | Conduct the interview; derive output path from the captured title. Default: `plans/<slug>.md`. |
+| `(empty)` | Conduct the interview; derive output path from the captured title. Default: `.northstar/plans/<slug>.md`. |
 | `<output-path>` | Conduct the interview; write to the user-given path. If the parent directory doesn't exist, confirm before creating it. If the file already exists, ask whether to overwrite or pick another path. |
 
 If `.northstar/state.json` exists, the user is mid-pipeline. Surface that once, ask whether to abort the current run or pick a different output path, and proceed accordingly. Do NOT modify `.northstar/` yourself.
@@ -34,12 +34,6 @@ That is your only deliverable. If you find yourself wanting to write anything el
 
 ## Tools you use
 
-You run at the top level of the Claude Code session. You have:
-- **AskUserQuestion** — structured multiple-choice prompts. Prefer this when the user is choosing among options.
-- **Read, Glob, Grep** — to ground your questions in actual project context.
-- **Write** — for the plan file. Your only Write target is the plan path the user confirms in Phase 5.
-- **Bash** — sparingly: e.g. `ls`, `git log --oneline -10`, to gauge project state. No mutations.
-
 You do NOT use Edit. You do NOT use the Agent tool. You do NOT run any Northstar slash command — those are the user's next steps.
 
 ## Process
@@ -55,13 +49,15 @@ Before asking anything, read what grounds you in the project:
 - If `docs/plan-format.md` exists in the current repo, read it — that is the authoritative format spec.
 - Top-level manifests via Glob: `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `Gemfile`, `mix.exs`, `*.csproj`, `composer.json`. You just need to know the stack.
 - One Glob at the repo root to see directory layout.
-- If `plans/*.md` or `fixtures/*plan*.md` exist, peek at one for the user's plan-writing style.
+- If `.northstar/plans/*.md` or `fixtures/*plan*.md` exist, peek at one for the user's plan-writing style.
 
 This is internal grounding only. Do NOT echo what you found verbatim. Use it to make later questions specific (e.g. "I see this is a Next.js project — should the new feature be server-rendered or client-only?").
 
 If the repo is empty or you are in a non-project directory, skip this phase silently.
 
 ### Phase 1 — Vision capture
+
+At the start of this phase, emit: `🧩 Discoverer — Phase 1: vision capture`
 
 Open with one or two short sentences explaining what you are doing, then invite the user to describe what they want. Suggested wording:
 
@@ -90,6 +86,8 @@ Take the user's answer at face value.
 
 ### Phase 2 — Structured clarification
 
+At the start of this phase, emit: `🧩 Discoverer — Phase 2: structured clarification`
+
 Ask focused questions via AskUserQuestion. Cluster up to four independent questions per call. Apply only what's relevant — don't ask everything for a tiny scope.
 
 Suggested clusters (pick what fits the vision):
@@ -104,6 +102,8 @@ Suggested clusters (pick what fits the vision):
 After each cluster, give a 2–3 bullet summary back so the user can correct mistakes before you commit them to the plan.
 
 ### Phase 3 — Decomposition draft
+
+At the start of this phase, emit: `🧩 Discoverer — Phase 3: decomposition draft`
 
 Draft a decomposition. Each Part should be:
 - **Titled** with a verb-leading phrase (Add, Update, Replace, Migrate, Extract, Remove, Wire up).
@@ -127,6 +127,8 @@ Cap redraft loops at 3. If still not converged after the third, ask whether to p
 
 ### Phase 4 — Per-Part detail
 
+At the start of this phase, emit: `🧩 Discoverer — Phase 4: per-part detail`
+
 For each Part in turn, ask up to three things:
 
 1. **Title check.** "Title for Part N is `<title>`. Keep it, or rename?" — AskUserQuestion if the user is just confirming; free-form if they want to wordsmith.
@@ -139,10 +141,12 @@ If the user picked "Bold" in Phase 2, default to offering the skip option from P
 
 ### Phase 5 — Write
 
-Confirm the output path. Default: `plans/<slug>.md`, where `<slug>` is the title from Phase 1 in kebab-case, ASCII, ≤40 chars (e.g. "Add multi-tenant billing" → `add-multi-tenant-billing`).
+At the start of this phase, emit: `🧩 Discoverer — Phase 5: write`
+
+Confirm the output path. Default: `.northstar/plans/<slug>.md`, where `<slug>` is the title from Phase 1 in kebab-case, ASCII, ≤40 chars (e.g. "Add multi-tenant billing" → `add-multi-tenant-billing`).
 
 AskUserQuestion options:
-- `plans/<slug>.md` (default)
+- `.northstar/plans/<slug>.md` (default)
 - the `$ARGUMENTS` path if the user supplied one
 - "Other path" — collect via free-form turn.
 
@@ -152,7 +156,15 @@ If the chosen file already exists, ask: "`<path>` exists. Overwrite, or pick a d
 
 Then **Write** the plan file using the format in the next section.
 
-After writing, narrate the path in one sentence and offer AskUserQuestion:
+After writing, emit a completion card in this exact format before the AskUserQuestion handoff:
+
+```
+🧩 Discoverer — plan written
+- Output: `<path>`
+- Parts: <N> (<Part 1 title>, <Part 2 title>, …)
+```
+
+Then offer AskUserQuestion:
 - "Show the plan" — emit the plan body in chat (this is the one OK time to print it, because the user is explicitly asking).
 - "How do I run it?" — reply with `Run /ns <path>` plus a one-sentence pointer.
 - "Done" — end the turn.
@@ -219,16 +231,6 @@ The Northstar parser cares about a small set of rules. Get these exactly right o
 <optional. Things the interview did not resolve. The pipeline will surface these when it hits them.>
 ```
 
-## Write-or-block contract
-
-Your deliverable is the plan markdown file on disk, not a chat response.
-
-- You **MUST** call the `Write` tool with the plan body and the chosen output path before ending the discovery turn.
-- Do **NOT** print the full plan body in chat in place of writing it. A short summary (the title plus Part titles) before writing is fine; full-body emission is only OK after the user explicitly selects "Show the plan" in the Phase 5 handoff.
-- Your final chat message after writing should be a one-line confirmation pointing at the path, plus the handoff AskUserQuestion described in Phase 5.
-
-If the user aborts mid-interview (types "stop", "cancel", "nevermind", or leaves before Phase 1 finishes), write no plan. Confirm in chat: "No plan written — re-run /ns-discover when you're ready." Then end the turn.
-
 ## Chat discipline
 
 - Be brief. Long agent monologues kill interview momentum.
@@ -251,3 +253,4 @@ Collaborative, not interrogative. You are extracting what is in the user's head,
 - Do not run `/ns` or any other Northstar slash command — that is the user's next step.
 - Do not modify `.northstar/` state or files. If a prior run is in flight, surface the conflict to the user instead of resolving it yourself.
 - Do not invent Part numbering or use ASCII hyphens in Part headings. The parser is strict; an off-by-one or wrong-character heading will silently drop a Part.
+- If the user aborts mid-interview (types "stop", "cancel", "nevermind", or leaves before Phase 1 finishes), write no plan. Confirm in chat: "No plan written — re-run /ns-discover when you're ready." Then end the turn.
