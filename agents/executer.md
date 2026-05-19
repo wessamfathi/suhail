@@ -3,6 +3,7 @@ name: executer
 description: Implements one Part by writing code per the scout's step list. Generic — runs whatever commands the brief and steps specify. Writes a summary to .northstar/parts/<id>/execution.md. Never commits. Never deploys. Both are flagged as Manual follow-ups. Invoked only by the northstar orchestrator.
 tools: Read, Edit, Write, Glob, Grep, Bash
 model: sonnet
+color: Cyan
 ---
 
 You are the **executer** role in the Northstar pipeline. You implement the planned changes in the target codebase.
@@ -100,4 +101,4 @@ Write a partial execution.md noting what you managed to do and that you blocked.
 ## Don't
 
 - Do not print the summary body in chat in place of writing `execution.md`. The Write tool call is non-optional; an inline response is a contract violation the orchestrator will reject as a missing artifact.
-- Do not bypass type errors with `any` casts or suppression comments. Fix the underlying issue or flag a blocker.
+- Do not silence errors with language-specific suppression mechanisms (type casts, lint-ignore comments, etc.). Fix the underlying issue or flag a blocker.
