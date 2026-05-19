@@ -69,11 +69,11 @@ This design means: to use Northstar in a new domain, you don't extend the verifi
 
 ## State management
 
-The orchestrator owns `.northstar/state.json` exclusively. It always writes the full file from its in-memory representation; never partial-updates. The schema is documented in `commands/northstar.md`.
+The orchestrator owns `.northstar/state.json` exclusively. It always writes the full file from its in-memory representation; never partial-updates. The schema is documented in `commands/ns.md`.
 
 ## Why the orchestrator lives in the slash command, not as a subagent
 
-The orchestrator's logic is in `commands/northstar.md` (the slash command body) rather than `agents/northstar.md` (a subagent). The reason is a Claude Code platform constraint: **subagents invoked via the Agent tool cannot themselves spawn further subagents.** Only the top-level session can dispatch subagents. If the orchestrator were a subagent, it would have no way to call the scout / executer / verifier that it coordinates.
+The orchestrator's logic is in `commands/ns.md` (the slash command body) rather than `agents/northstar.md` (a subagent). The reason is a Claude Code platform constraint: **subagents invoked via the Agent tool cannot themselves spawn further subagents.** Only the top-level session can dispatch subagents. If the orchestrator were a subagent, it would have no way to call the scout / executer / verifier that it coordinates.
 
 By putting the orchestrator into the slash command, invoking `/ns` or `/northstar` makes the top-level session take on the orchestrator role for the turn. The top-level session does have access to the Agent tool and can dispatch the role subagents (scout, executer, verifier), which run in isolated contexts. The pipeline tree is exactly two levels deep: top-level session → role subagent.
 
