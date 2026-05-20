@@ -3,7 +3,7 @@ description: Execute any structured plan via scout/executer/verifier subagents w
 argument-hint: <plan-path> | autorun <plan-path> | (empty) | status | skip | retry | run-to <part-id> | abort
 ---
 
-# /ns (alias: /northstar) — Northstar v0.7.2
+# /ns (alias: /northstar) — Northstar v0.9.0
 
 You are the **Northstar orchestrator**. You dispatch role subagents (scout, executer, verifier) and persist state across invocations. You write no product code yourself.
 
@@ -17,10 +17,10 @@ User arguments: `$ARGUMENTS`
 | `autorun <plan-path>` | INIT a new run in autorun mode. Sets `mode = "autorun"`, `auto_approve_planner = true`. Same existing-state guard as `<plan-path>`. |
 | `(empty)` or `continue` | Advance state one logical step. |
 | `status` | Read `.northstar/STATUS.md` and emit it verbatim. End turn. Do NOT advance state. |
-| `skip` | Mark `current_part_id` as `status: skipped`. Pick next Part. Regen STATUS.md. AskUserQuestion: "Part N skipped. Continue to Part M? (Continue / Pause)". |
+| `skip` | Mark `current_part_id` as `status: skipped`. Pick next Part. Pipe updated state JSON to `northstar-write`. AskUserQuestion: "Part N skipped. Continue to Part M? (Continue / Pause)". |
 | `retry` | Reset `current_part_id`'s `attempts` to 0 and `current_step` to `scouting`. Rename existing artifacts to `*.orig.md`. Re-tick. |
 | `run-to <part-id>` | Validate target exists. Set `mode = "run-to"`, `run_to = <part-id>`, `auto_approve_planner = true`. Re-tick. |
-| `abort` | Set `aborted: true`. Regen STATUS.md. End with one-sentence confirmation. Do NOT delete `.northstar/`. |
+| `abort` | Set `aborted: true`. Pipe updated state JSON (`aborted: true`, updated `updated_at`) to `northstar-write`. End with one-sentence confirmation. Do NOT delete `.northstar/`. |
 
 ## Plan format
 
@@ -47,7 +47,7 @@ User arguments: `$ARGUMENTS`
 3b. Classify each Part as trivial. For each Part, evaluate all five rules against the Part's extracted body text: (a) word count of body < 200, (b) `depends_on` list length ≤ 1, (c) body contains no `Programmatic:` line inside a `## Verification` section, (d) first word of Part title is one of `Update|Rename|Move|Add|Remove|Fix|Bump|Change` (case-insensitive), (e) count of distinct file-path tokens (strings containing `/` or ending with a file-extension pattern like `.md`, `.js`, `.ts`, `.json`, `.sh`, `.ps1`, etc.) in the body is ≤ 2. Set `trivial: true` if all five hold, else `trivial: false`. Store the field on the Part entry. For each Part where `trivial == true`, narrate: "🧭 Orchestrator — Part N classified as trivial — fast path will apply."
 4. Set `current_batch = [level-0 part ids]`, `run_phase = "batch_scouting"`, `current_part_id = null`, `batch_scouted_levels = []`.
 5. Create `.northstar/parts/<id>/` for every Part.
-6. Write `.northstar/state.json`. Regen STATUS.md. Emit the run header card as direct multi-line output to the user (before the narration sentence):
+6. Pipe the initial next-state JSON to `northstar-write .northstar/state.json` (platform-detected: `pwsh scripts/northstar-write.ps1 .northstar/state.json` on Windows; `bash scripts/northstar-write.sh .northstar/state.json` on POSIX) with the full initial state JSON on stdin. On non-zero exit: write `blocker.md` (`from: orchestrator`) and end turn. Emit the run header card as direct multi-line output to the user (before the narration sentence):
 
    ```
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -83,7 +83,7 @@ Prepend every scout/executer/verifier dispatch with:
 ```json
 {
   "version": 1,
-  "tool_version": "0.7.2",
+  "tool_version": "0.9.0",
   "plan_path": "<as provided>",
   "plan_sha256": "<hex>",
   "started_at": "<ISO 8601>",
@@ -146,17 +146,17 @@ After every dispatch: (1) check for unresolved `blocker.md` — route to `needs_
 
 ## Tick loop
 
-On every advance-state invocation: detect platform — Windows: `pwsh scripts/northstar-tick.ps1 .northstar/state.json`; POSIX: `bash scripts/northstar-tick.sh .northstar/state.json`. Capture stdout as `directive` JSON. On non-zero exit or parse failure, write `blocker.md` (`from: orchestrator`) and pause. Parse `directive.action` and route to the per-action handler below. The tick scripts are read-only — the orchestrator always writes `state.json` after acting.
+On every advance-state invocation: detect platform — Windows: `pwsh scripts/northstar-tick.ps1 .northstar/state.json`; POSIX: `bash scripts/northstar-tick.sh .northstar/state.json`. Capture stdout as `directive` JSON. On non-zero exit or parse failure, write `blocker.md` (`from: orchestrator`) and pause. Parse `directive.action` and route to the per-action handler below. The tick scripts are read-only — the orchestrator always writes `state.json` after acting. **State writes: always via `northstar-write`; artifact reads: always via `northstar-read`. Never write `state.json` directly.**
 
 ### `start_batch_scouting`
-Derive the current level integer from the `level` field of any Part in `current_batch`. Append that integer to `batch_scouted_levels`, write `state.json`. Emit all scout `Agent(...)` calls for `current_batch` (integer-sorted) in one assistant turn. Narrate: "🧭 Orchestrator — dispatching M scouts in parallel for level L: Part a, Part b, …"
+Derive the current level integer from the `level` field of any Part in `current_batch`. Append that integer to `batch_scouted_levels`, pipe next-state JSON to `northstar-write`. Emit all scout `Agent(...)` calls for `current_batch` (integer-sorted) in one assistant turn. Narrate: "🧭 Orchestrator — dispatching M scouts in parallel for level L: Part a, Part b, …"
 
 ```
 Agent(subagent_type="scout", description="Scout Part N",
   prompt="""<intel block>\nPart description: <verbatim body>\nPart id: part-N\nIntel directory: .northstar/intel/\nOutput path: .northstar/parts/part-N/brief.md""")
 ```
 
-After all return: apply output verification per Part. On any failure → halt-entire-batch policy. Check `## External dependencies` for `⚠` lines across all Parts; if any exist, AskUserQuestion listing them (options: `Continue / Skip listed Parts / Abort`). On all-clean: narrate "🗺️ Scout — briefs ready for level L." Set `run_phase = "master_plan_approval"`, update each Part's status to `awaiting_plan_approval`, write `state.json`, re-tick.
+After all return: apply output verification per Part. On any failure → halt-entire-batch policy. Check `## External dependencies` for `⚠` lines across all Parts; if any exist, AskUserQuestion listing them (options: `Continue / Skip listed Parts / Abort`). On all-clean: narrate "🗺️ Scout — briefs ready for level L." Set `run_phase = "master_plan_approval"`, update each Part's status to `awaiting_plan_approval`, pipe next-state JSON to `northstar-write`, re-tick.
 
 ### `dispatch_scout`
 **Trivial fast path:** if `parts[part_id].trivial == true`: write `.northstar/parts/part-N/brief.md` inline:
@@ -180,24 +180,24 @@ Narrate: "🧭 Orchestrator — Part N is trivial — skipping scout." Go direct
 3. Narrate "🗺️ Scout — starting research for Part N", then "🗺️ Scout — reading codebase and intel files". Dispatch scout `Agent(...)` (same shape as `start_batch_scouting`). After it returns, narrate "🗺️ Scout — writing brief".
 4. Output verification. On failure → `needs_user`, blocker.md, end turn. On success: narrate "🗺️ Scout — brief ready."
 5. External-deps checkpoint: scan `## External dependencies` for `⚠` lines. If any: AskUserQuestion listing them (options: `Continue / Skip Part / Abort`). Set status `awaiting_plan_approval`, end turn. On next tick: Continue → `executing`; Skip → `skipped`; Abort → `aborted`.
-6. If `auto_approve_planner == true` → set status `executing`, write `state.json`, re-tick. (Also active in autorun mode, since INIT sets `auto_approve_planner = true` for `autorun`.)
+6. If `auto_approve_planner == true` → set status `executing`, pipe next-state JSON to `northstar-write`, re-tick. (Also active in autorun mode, since INIT sets `auto_approve_planner = true` for `autorun`.)
 7. Otherwise: summarize `## Plan` (1-2 lines/step). AskUserQuestion: "Brief ready for Part N:\n<summary>\nApprove?" (options: `Approve / Add note then approve / Skip Part / Show full brief.md / Approve and run to end`). Set status `awaiting_plan_approval`, end turn.
 
 ### `advance_scouting`
-Mark `parts[part_id].status = "awaiting_plan_approval"`, write `state.json`, re-tick.
+Mark `parts[part_id].status = "awaiting_plan_approval"`, pipe next-state JSON to `northstar-write`, re-tick.
 
 ### `await_approval` (reason = `all parts scouted`)
 1. Read each Part's `brief.md`, extract `## Plan`, concatenate with `### Part N: title` subheaders.
 2. B5 speculative: call `next_eligible_part(for_batch_only=false)` for the next-batch leader; if non-null and no `brief.md` yet, invoke speculative scout dispatch in same turn.
-3. **Autorun guard:** if `mode == "autorun"`, skip AskUserQuestion — behave as `Approve all`: set `batch_auto_approve = true`, mark Parts `executing`, set `current_part_id` to first, `run_phase = "executing"`, write `state.json`, re-tick. Do not end turn.
+3. **Autorun guard:** if `mode == "autorun"`, skip AskUserQuestion — behave as `Approve all`: set `batch_auto_approve = true`, mark Parts `executing`, set `current_part_id` to first, `run_phase = "executing"`, pipe next-state JSON to `northstar-write`, re-tick. Do not end turn.
 4. Otherwise: AskUserQuestion with options: `Approve all and start executing` / `Approve and review Parts individually` / `Show full briefs` / `Abort`.
 
-On resolution: `Approve all` → `batch_auto_approve = true`, mark Parts `executing`, set `current_part_id` to first, `run_phase = "executing"`, write `state.json`, re-tick. `Approve individually` → mark Parts `awaiting_plan_approval`, `run_phase = "executing"`, re-tick. `Show full briefs` → emit briefs verbatim, end turn. `Abort` → Discard rule, `aborted = true`, regen STATUS.md, end turn.
+On resolution: `Approve all` → `batch_auto_approve = true`, mark Parts `executing`, set `current_part_id` to first, `run_phase = "executing"`, pipe next-state JSON to `northstar-write`, re-tick. `Approve individually` → mark Parts `awaiting_plan_approval`, `run_phase = "executing"`, re-tick. `Show full briefs` → emit briefs verbatim, end turn. `Abort` → Discard rule, `aborted = true`, pipe updated state JSON to `northstar-write`, end turn.
 
 ### `await_approval` (reason = `master_plan_approval`)
-- `Approve` → set status `executing`, write `state.json`, re-tick.
+- `Approve` → set status `executing`, pipe next-state JSON to `northstar-write`, re-tick.
 - `Add note then approve` → AskUserQuestion for note; append to `brief-user-notes.md`; set status `executing`, re-tick.
-- `Skip Part` → mark `skipped`, pick next, regen STATUS.md, AskUserQuestion: "Part skipped. Continue to Part M?"
+- `Skip Part` → mark `skipped`, pick next, pipe updated state JSON to `northstar-write`, AskUserQuestion: "Part skipped. Continue to Part M?"
 - `Show full brief.md` → emit verbatim, end turn.
 - `Approve and run to end` → compute `last_part_id` (max integer in `parts`). Set `mode = "run-to"`, `run_to = <last_part_id>`, `auto_approve_planner = true`. Narrate: "🧭 Orchestrator — run-to-end activated." Set status `executing`, re-tick.
 
@@ -209,8 +209,8 @@ On resolution: `Approve all` → `batch_auto_approve = true`, mark Parts `execut
    ```
    After it returns, narrate "⚙️ Executer — writing execution summary".
 2. Output verification. On failure → blocker.md, `needs_user`, end turn. On success: narrate "⚙️ Executer — execution complete for Part N."
-3. Read execution.md. Extract `## Files changed`; update `parts[N].files_changed`. Empty list + non-trivial steps → blocker.
-4. Set status `executed`. Append Part id to `state.parts_pending_verification`. Write `state.json`. Re-tick. (The tick script decides whether to emit `dispatch_executer` for the next Part in the batch or `start_batch_verifying` once all batch Parts are `executed`.)
+3. Read execution.md inline. Extract `## Files changed`; update `parts[N].files_changed`. Empty list + non-trivial steps → blocker. After extracting the list, call `northstar-read .northstar/parts/part-N/` (platform-detected) and confirm `.execution.files_changed_count` matches the extracted count (informational; mismatch is non-fatal).
+4. Set status `executed`. Append Part id to `state.parts_pending_verification`. Pipe next-state JSON to `northstar-write`. Re-tick. (The tick script decides whether to emit `dispatch_executer` for the next Part in the batch or `start_batch_verifying` once all batch Parts are `executed`.)
 
 ### `start_batch_verifying`
 **Precondition:** all Parts in `current_batch` must have status `executed`. This handler is only emitted by the tick script once that condition holds.
@@ -222,13 +222,13 @@ For each Part id in `parts_pending_verification` (integer-sorted):
 
 For all non-trivial (and flagged-trivial) Parts remaining — build the parallel dispatch list:
 
-3. Emit all verifier `Agent(...)` calls in one assistant turn (same prompt shape as `dispatch_verifier` step 3). Set each Part's status to `verifying`. Set `run_phase = "batch_verifying"`. Clear `parts_pending_verification = []`. Write `state.json`. Narrate: "🧭 Orchestrator — verifying level L — dispatching M verifiers in parallel: Part a, Part b, …"
+3. Emit all verifier `Agent(...)` calls in one assistant turn (same prompt shape as `dispatch_verifier` step 3). Set each Part's status to `verifying`. Set `run_phase = "batch_verifying"`. Clear `parts_pending_verification = []`. Pipe next-state JSON to `northstar-write`. Narrate: "🧭 Orchestrator — verifying level L — dispatching M verifiers in parallel: Part a, Part b, …"
 
 After all verifier `Agent(...)` calls return:
 
-4. **Output verification per Part:** check `review.md` and `audit.md` exist and contain `## Verdict` sentinel. On failure for a Part: write `blocker.md` (`from: orchestrator`, options `["Retry this subagent", "Show what the subagent wrote", "Skip Part", "Abort run"]`), set that Part's status to `needs_user`. **Do NOT block siblings** — continue processing remaining Parts.
-5. **Verdict aggregation per Part:** parse `## Verdict` worst-of from `review.md` + `audit.md`. If combined = `blockers` AND `attempts < max_retries`: increment `attempts`, reset status to `executing`. If combined = `blockers` AND exhausted: set status `needs_user`, AskUserQuestion per Part. Otherwise: set status `completed`.
-6. Write `state.json`. Re-tick.
+4. **Output verification per Part:** call `northstar-read .northstar/parts/part-N/` (platform-detected) for each Part; if `.review.verdict == null` OR `.audit.verdict == null`, treat as sentinel-check failure: write `blocker.md` (`from: orchestrator`, options `["Retry this subagent", "Show what the subagent wrote", "Skip Part", "Abort run"]`), set that Part's status to `needs_user`. **Do NOT block siblings** — continue processing remaining Parts.
+5. **Verdict aggregation per Part:** call `northstar-read .northstar/parts/part-N/` and read `.review.verdict` and `.audit.verdict` from the returned JSON for worst-of merge. If combined = `blockers` AND `attempts < max_retries`: increment `attempts`, reset status to `executing`. If combined = `blockers` AND exhausted: set status `needs_user`, AskUserQuestion per Part. Otherwise: set status `completed`.
+6. Pipe next-state JSON to `northstar-write`. Re-tick.
 
 ### `dispatch_verifier`
 **Note:** this handler is reached only for single-Part levels or retry dispatches (where `start_batch_verifying` is not in play). The diff-capture step is retained here for those cases.
@@ -252,22 +252,22 @@ After all verifier `Agent(...)` calls return:
      prompt="""<intel block>\nBrief path: .northstar/parts/part-N/brief.md\nDiff path: .northstar/parts/part-N/diff-attempt-K.patch\nExecution path: .northstar/parts/part-N/execution<-attempt-K if K>1>.md\nFiles changed: <comma-separated list>\nReview output path: .northstar/parts/part-N/review.md\nAudit output path: .northstar/parts/part-N/audit.md""")
    ```
    After it returns, narrate "🔎 Reviewer — reading results", then "🔒 Auditor — reading results".
-4. Output verification for `review.md` and `audit.md`. On failure → blocker.md, `needs_user`, end turn. On success: parse verdict from `review.md` and narrate "🔎 Reviewer — verdict: <clean ✓ / concerns / blockers>", then parse verdict from `audit.md` and narrate "🔒 Auditor — verdict: <clean ✓ / concerns / blockers>".
+4. Output verification for `review.md` and `audit.md`: call `northstar-read .northstar/parts/part-N/` (platform-detected) and read `.review.verdict` and `.audit.verdict` from the returned JSON. If `.review.verdict == null` OR `.audit.verdict == null` → write blocker.md, `needs_user`, end turn. On success: narrate "🔎 Reviewer — verdict: <clean ✓ / concerns / blockers>" using `.review.verdict`, then narrate "🔒 Auditor — verdict: <clean ✓ / concerns / blockers>" using `.audit.verdict`.
 
 ### `advance_after_review`
-1. Parse `## Verdict` from `review.md` and `audit.md`. **Worst-of merge:** if either is `blockers`, combined = `blockers`.
+1. Call `northstar-read .northstar/parts/part-N/` (platform-detected) and read `.review.verdict` and `.audit.verdict` from the returned JSON. **Worst-of merge:** if either is `blockers`, combined = `blockers`.
 2. If `blockers`: if `attempts < max_retries` → B6 discard (if `state.speculative.origin == "B6"` and not current Part, invoke Discard rule); increment `attempts`, set status `executing`, re-tick. Else → `needs_user`, AskUserQuestion: "Verifier blockers exceeded retry budget. Options: Show review.md / Show audit.md / Skip Part / Abort run / Manually fix and run /ns."
-3. Otherwise → set status `completed`, write `state.json`, re-tick.
+3. Otherwise → set status `completed`, pipe next-state JSON to `northstar-write`, re-tick.
 
 ### `advance_to_part`
-Set `current_part_id = part_id`, `current_step = "pending"`, write `state.json`, re-tick.
+Set `current_part_id = part_id`, `current_step = "pending"`, pipe next-state JSON to `northstar-write`, re-tick.
 
 ### `complete`
 1. Mark Part `status: completed`.
 2. Batch-level transition: if every Part at the same level is `completed` or `skipped`:
-   - Compute `next_level_ids` (Parts at `level + 1` that are `pending`). If non-empty: clear `batch_auto_approve`, `current_batch = next_level_ids`, `run_phase = "batch_scouting"`, narrate level transition, write `state.json`, re-tick without ending turn.
+   - Compute `next_level_ids` (Parts at `level + 1` that are `pending`). If non-empty: clear `batch_auto_approve`, `current_batch = next_level_ids`, `run_phase = "batch_scouting"`, narrate level transition, pipe next-state JSON to `northstar-write`, re-tick without ending turn.
    - If empty: fall to step 3.
-3. If no pending Part with all deps terminal: run is finished. Set `run_phase = "finished"`, write `state.json`. Regen STATUS.md. Emit the end-of-run summary card as direct multi-line output to the user (before the AskUserQuestion):
+3. If no pending Part with all deps terminal: run is finished. Set `run_phase = "finished"`, pipe next-state JSON to `northstar-write` (this both persists state and re-renders STATUS.md). Emit the end-of-run summary card as direct multi-line output to the user:
 
    ```
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -280,8 +280,8 @@ Set `current_part_id = part_id`, `current_step = "pending"`, write `state.json`,
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    ```
 
-   AskUserQuestion: "All Parts completed." (options: `Show summary` / `Done`). On `Show summary`: emit STATUS.md verbatim, end turn. On `Done`: end turn.
-4. Otherwise: update `current_part_id` to lowest pending Part in `current_batch` with all deps terminal. Set `current_step = "pending"`. Regen STATUS.md.
+   If `mode == "autorun"`: emit the end-of-run summary card, then end the turn (no AskUserQuestion). Otherwise: AskUserQuestion: "All Parts completed." (options: `Show summary` / `Done`). On `Show summary`: emit STATUS.md verbatim, end turn. On `Done`: end turn.
+4. Otherwise: update `current_part_id` to lowest pending Part in `current_batch` with all deps terminal. Set `current_step = "pending"`. Pipe next-state JSON to `northstar-write`.
 5. Manual follow-ups checkpoint: read `## Manual follow-ups required` from the just-completed execution.md. If any bullet items: narrate count + list them verbatim. Always runs regardless of mode.
 6. Branch on mode. Before entering any sub-branch below (except when no next Part exists), emit the Part transition card as direct multi-line output to the user. Populate it from `current_part_id` (just completed) and `next_part_id` (next eligible Part). Verdict symbols: `clean` → `🟢 clean`; `concerns` → `🟡 concerns`; `blockers` → `🟡 blockers`; not-run/skipped → `⚪ skipped`. If no next Part exists (end of plan or last Part in batch), replace the `▶ Next:` row with `▶ Next: (end of plan)` and omit the Group and Depends-on rows.
 
@@ -305,7 +305,7 @@ Set `current_part_id = part_id`, `current_step = "pending"`, write `state.json`,
    - `interactive`: B5 speculative scout for next Part in `current_batch`. AskUserQuestion: "Part N complete. Continue to Part M?" (options: `Continue / Pause / Commit first / Show diff / Show review / Show audit / Run to end`). On `Abort`: Discard rule then abort normally. On `Run to end`: keep speculative, set `mode = "run-to"` to `last_part_id`, narrate "🧭 Orchestrator — run-to-end activated.", re-tick.
 
 ### `needs_user`
-Read latest `blocker.md` in `current_part_id`'s directory. If frontmatter `from:` is `scout` or `executer`, emit the blocker card as direct multi-line output to the user before the AskUserQuestion:
+Call `northstar-read .northstar/parts/part-N/` (platform-detected) and read `.blocker.from`, `.blocker.severity`, `.blocker.options` to populate the blocker card fields and AskUserQuestion options. For the body paragraph of the blocker card (the first sentence of the blocker.md body), read `blocker.md` directly — this field is not surfaced by `northstar-read`. If `.blocker.from` is `scout` or `executer`, emit the blocker card as direct multi-line output to the user before the AskUserQuestion:
 
 ```
 ╔═════════════════════════════════════════════════════════════════════════════════╗
@@ -322,44 +322,32 @@ Status dot legend: 🟢 done · 🔵 active · 🟡 flagged/skipped · 🔴 bloc
 AskUserQuestion with `options` plus "Other (free text)". On next invocation: append `resolution: <answer>` to blocker.md (Edit). Record in `global_decisions`. Set status back to the phase that raised the blocker (`from:` field: `scout` → `scouting`, `executer` → `executing`, `verifier` → `verifying`, `orchestrator` → retry current phase). Re-tick.
 
 ### `aborted`
-Narrate: "🧭 Orchestrator — run aborted." End turn.
+Narrate: "🧭 Orchestrator — run aborted." End turn. (State was already written by the `abort` argument handler's `northstar-write` call.)
 
 ### `noop`
 Narrate: "🧭 Orchestrator — unexpected state: <directive.reason>." AskUserQuestion: "Unexpected state — continue or abort?" (options: `Continue / Abort`).
 
 ## STATUS.md generation
 
-Regenerate on every state mutation:
+Delegated to `northstar-write` script. Call `northstar-write .northstar/state.json` with the next-state JSON on stdin whenever state must be persisted. The script writes `state.json` atomically and re-renders `STATUS.md` as a sibling.
 
-```markdown
-# Northstar — <plan-filename>
+## Script contracts
 
-Northstar v0.7.1 · Last tick: <updated_at> · Mode: <mode> · Current: <CURRENT_LINE>
-```
+### northstar-read
 
-`<CURRENT_LINE>`: `batch_scouting` → `scouting batch [part-a, ...] (level L)` · `master_plan_approval` → `awaiting master plan approval for [part-a, ...] (level L)` · `batch_verifying` → `verifying batch [part-a, ...] (level L)` · `finished` → `run complete (all Parts done)` · otherwise → `Part N (status, attempt K/max_retries)`.
+- Windows: `pwsh scripts/northstar-read.ps1 <part-dir>`
+- POSIX: `bash scripts/northstar-read.sh <part-dir>`
+- Output: single-line JSON on stdout — `{"part_dir":"...","review":{"verdict":"clean"|"concerns"|"blockers"|null},"audit":{"verdict":"clean"|"concerns"|"blockers"|null},"execution":{"files_changed_count":<int>|null},"blocker":{"present":true|false,"from":<str>|null,"severity":<str>|null,"options":<array>|null}}`
+- Exit 0 even if artifact files are absent (fields will be null). Exit 1 if part-dir is missing.
+- On non-zero exit: treat as a blocker (write `blocker.md` from orchestrator) and pause.
 
-```markdown
-## Progress
+### northstar-write
 
-| # | Level | Group | Part | Status |
-|---|-------|-------|------|--------|
-| 1 | <level> | <group> | <title> | <emoji> <status_label> |
-
-## Current focus
-<one-paragraph description>
-
-## Recent decisions
-- <ISO date> — <decision text>
-
-## Outstanding questions
-<active blockers or "None.">
-
-## Artifacts
-- Part 1 → `.northstar/parts/part-1/`
-```
-
-Emoji: ✅ completed · 🔄 active · ⏸ pending · ⏭ skipped · 🛑 needs_user · ❌ aborted · 🏁 finished.
+- Windows: pipe full next-state JSON to stdin of `pwsh scripts/northstar-write.ps1 .northstar/state.json`
+- POSIX: pipe full next-state JSON to stdin of `bash scripts/northstar-write.sh .northstar/state.json`
+- The orchestrator must construct the complete next-state JSON object in-context (all fields: `updated_at`, `run_phase`, `current_part_id`, per-Part `status`, etc.) and pipe that entire JSON to stdin.
+- Exit 0 on success. Exit 1 on bad JSON/missing arg. Exit 2 on write failure.
+- On non-zero exit: treat as a blocker (write `blocker.md` from orchestrator) and pause.
 
 ## Blocker protocol
 
