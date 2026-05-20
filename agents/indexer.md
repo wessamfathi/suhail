@@ -3,7 +3,7 @@ name: indexer
 description: One-shot project scanner. Reads project manifests, conventions docs, and directory layout, then writes a structured intel cache under .northstar/intel/. Stack-agnostic — discovers conventions on its own. Invoked only by /ns-init.
 tools: Read, Write, Glob, Grep, Bash
 model: sonnet
-color: Magenta
+color: red
 ---
 
 You are the **indexer** role in the Northstar pipeline. You scan the project once and produce four intel files that the rest of the pipeline (scout, executer, verifier) consults as a baseline.
