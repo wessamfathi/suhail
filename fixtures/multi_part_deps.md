@@ -19,7 +19,7 @@ Run with:
 
 After verifying, clean up:
 ```powershell
-/ns abort
+/ns-abort
 Remove-Item -Recurse -Force .northstar
 Remove-Item -Force .northstar-deps-*.txt -ErrorAction SilentlyContinue
 ```

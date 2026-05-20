@@ -85,13 +85,13 @@ Expected result: a `.northstar-smoketest.txt` file containing `northstar smoke o
 |---|---|
 | `/ns-init` | Scan the project and cache stack / layout / conventions / modules under `.northstar/intel/`. Required precursor for `/ns` and `/ns-discover`. |
 | `/ns-init refresh` | Force a rescan and overwrite existing intel. |
-| `/ns <plan-path>` | Initialize a new run against a plan file. Refuses if state already exists (use `abort` first) or if intel is missing (run `/ns-init` first). |
+| `/ns <plan-path>` | Initialize a new run against a plan file. Refuses if state already exists (use `/ns-abort` first) or if intel is missing (run `/ns-init` first). |
 | `/ns` | Continue from current state. Advances by one Part per tick. |
-| `/ns status` | Print the human-readable status dashboard (`.northstar/STATUS.md`). Read-only. |
-| `/ns skip` | Mark the current Part `skipped` and advance to the next. |
+| `/ns-status` | Print the human-readable status dashboard (`.northstar/STATUS.md`). Read-only. |
+| `/ns-skip` | Mark the current Part `skipped` and advance to the next. |
 | `/ns retry` | Reset the current Part's retry counter and re-run from `researching`. |
 | `/ns run-to <part-id>` | Auto-advance through Parts up to and including `<part-id>`. Pauses only on blockers; bypasses per-Part and scout-approval pauses for the duration. |
-| `/ns abort` | Set the run status to `aborted`. Does not delete artifacts. |
+| `/ns-abort` | Set the run status to `aborted`. Does not delete artifacts. |
 | `/ns-discover [output-path]` | Interview the user and write a Northstar-format plan file. Delegates Phase 0 grounding to `discover-scout` (haiku, read-only) and Phase 5 plan-writing to `discover-planner` (sonnet). Independent of any active run; requires intel. |
 | `/ns-next` | Auto-advance the current Northstar run by exactly one logical step. Zero-argument shortcut for "next" — performs no INIT, does not loop in `run-to` mode, and auto-approves the scout only at `awaiting_plan_approval`. Requires an active run. |
 | `/ns-auto [plan-path]` | Auto-detect the most recent plan and run it in autorun mode. |
@@ -157,11 +157,11 @@ Add `.northstar/` to your target repo's `.gitignore`. The install script will do
 
 ## Troubleshooting
 
-**"`.northstar/state.json` already exists"** — a previous run is in flight. Use `/ns status` to inspect, `/ns` to continue, or `/ns abort` then re-init.
+**"`.northstar/state.json` already exists"** — a previous run is in flight. Use `/ns-status` to inspect, `/ns` to continue, or `/ns-abort` then re-init.
 
 **"Plan file changed since last run"** — the plan's SHA differs from the recorded one. Choose "Re-parse" (Northstar rebuilds the Part list; in-flight Parts may be invalidated) or "Continue with cached structure" (proceed with the parts list from `state.json`).
 
-**Verifier keeps re-dispatching executer** — there's a finding the executer cannot fix. After three attempts the orchestrator hands control back; read the latest `review.md` / `audit.md` and either resolve manually, edit the plan and `/ns retry`, or `/ns skip`.
+**Verifier keeps re-dispatching executer** — there's a finding the executer cannot fix. After three attempts the orchestrator hands control back; read the latest `review.md` / `audit.md` and either resolve manually, edit the plan and `/ns retry`, or `/ns-skip`.
 
 **Artifacts under `.northstar/parts/<id>/`** are your friend. They're the persistent record of every reasoning step. Open them any time.
 
@@ -181,4 +181,4 @@ MIT. See [`LICENSE`](LICENSE).
 
 ## Status
 
-Northstar v0.9.0. Telemetry: none. Issues and PRs welcome.
+Northstar v0.10.0. Telemetry: none. Issues and PRs welcome.

@@ -217,10 +217,21 @@ while IFS= read -r dec; do
   dec="$(printf '%s' "$dec" | tr -d '\r')"
   [[ -z "$dec" ]] && continue
   decision_count=$((decision_count + 1))
-  dec_date="$(printf '%s' "$dec" | jqr '.date // ""')"
-  dec_text="$(printf '%s' "$dec" | jqr '.text // ""')"
-  decisions_text="${decisions_text}- ${dec_date} — ${dec_text}
+  if printf '%s' "$dec" | jq -e 'type == "string"' >/dev/null 2>&1; then
+    dec_text="$(printf '%s' "$dec" | jqr '.')"
+    decisions_text="${decisions_text}- ${dec_text}
 "
+  else
+    dec_date="$(printf '%s' "$dec" | jqr '.date // ""')"
+    dec_text="$(printf '%s' "$dec" | jqr '.text // ""')"
+    if [[ -n "$dec_date" ]]; then
+      decisions_text="${decisions_text}- ${dec_date} — ${dec_text}
+"
+    else
+      decisions_text="${decisions_text}- ${dec_text}
+"
+    fi
+  fi
 done < <(jq -c '.global_decisions // [] | .[]' "$STATE_PATH" | tr -d '\r')
 
 if [[ $decision_count -eq 0 ]]; then

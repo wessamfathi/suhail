@@ -15,7 +15,7 @@ Expected artifacts:
 
 After verifying, clean up:
 - Delete the three `.northstar-pv-smoketest-*.txt` files.
-- Delete `.northstar/` (or `/ns abort` then delete it).
+- Delete `.northstar/` (or `/ns-abort` then delete it).
 
 ## Parallel Verifier
 

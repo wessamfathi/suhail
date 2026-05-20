@@ -20,7 +20,7 @@ Touch points: `commands/northstar.md` state-machine description, dispatch shape 
 
 **Verification:**
 - Manual: `scripts/install.ps1 -Project <dev-dir>\northstar -Force`; fresh Claude Code session in `<dev-dir>\northstar`; run `/ns fixtures/test_plan.md`; confirm both `review.md` and `audit.md` are written and the phase narration shows a single combined event rather than two serial events. Wall-clock for the verify phase should drop noticeably.
-- Programmatic: after the fixture run, `Test-Path .northstar\parts\part-1\review.md` AND `Test-Path .northstar\parts\part-1\audit.md` both true; state.json shows verdicts merged; cleanup with `/ns abort` (if needed) and `Remove-Item -Recurse -Force .northstar, .northstar-smoketest.txt`.
+- Programmatic: after the fixture run, `Test-Path .northstar\parts\part-1\review.md` AND `Test-Path .northstar\parts\part-1\audit.md` both true; state.json shows verdicts merged; cleanup with `/ns-abort` (if needed) and `Remove-Item -Recurse -Force .northstar, .northstar-smoketest.txt`.
 
 ### Part 2 — Make researcher stack-discovery conditional on intel
 

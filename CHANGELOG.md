@@ -2,6 +2,21 @@
 
 All notable changes to Northstar are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] — 2026-05-20
+
+### Added
+- `/ns-abort` command (`commands/ns-abort.md`): standalone, zero-argument command that marks the current run `aborted` via `northstar-write` and preserves all `.northstar/` artifacts. Refuses cleanly when no run is active or the run is already aborted.
+- `/ns-status` command (`commands/ns-status.md`): standalone, read-only command that prints `.northstar/STATUS.md` verbatim. Never advances state or writes any file.
+- `/ns-skip` command (`commands/ns-skip.md`): standalone, zero-argument command that marks the current Part `skipped` via `northstar-write`, then offers to advance (delegating one tick to `ns.md`). The tick script's `skipped` branch auto-selects the next eligible Part.
+
+### Changed
+- `abort`, `status`, and `skip` removed as `/ns` arguments — each is now a dedicated single-shot command (`/ns-abort`, `/ns-status`, `/ns-skip`). The `/ns` argument-hint, argument table, INIT/refuse messages, and the `aborted` tick-handler note in `commands/ns.md` updated accordingly. The split follows a consistent rule: read-only or single-shot state actions are top-level commands; pipeline-driving verbs (`retry`, `run-to`, `continue`, INIT) stay as `/ns` arguments.
+- INIT now auto-cleans a `finished`/`aborted` prior run without prompting (`commands/ns.md` INIT step 0b): it deletes `state.json`, `STATUS.md`, and the stale `.northstar/parts/` artifacts so a fresh run on a different plan cannot adopt a previous run's briefs. Intel under `.northstar/intel/` is never touched.
+- `state.tool_version` bumped to `0.10.0`.
+
+### Migration
+- Replace `/ns abort` → `/ns-abort`, `/ns status` → `/ns-status`, `/ns skip` → `/ns-skip`. Behavior is identical.
+
 ## [0.9.0] — 2026-05-20
 
 ### Added
