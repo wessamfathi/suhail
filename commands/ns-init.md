@@ -102,15 +102,13 @@ You also ensure the following directories exist (create if missing, do not touch
    - "📦 Indexer — done — see `.northstar/intel/conventions.md`."
    - "📦 Indexer — done — see `.northstar/intel/modules.md`."
 
-   Then end with AskUserQuestion: "Project intel cached. Options: Run /ns-discover (interview to draft a plan) / Run /ns &lt;plan-path&gt; (execute an existing plan) / Done."
-
 ## Re-run on resolution
 
 If the user picked "Retry the indexer" on a blocker, append `resolution: Retry` to `.northstar/intel/blocker.md` via Edit, then re-dispatch (step 6) once. Cap retries at 2 — on third failure, escalate with a different option set: `["Show what the indexer wrote", "Abort", "Open the blocker"]`.
 
 ## Tools you use
 
-- AskUserQuestion — for the refresh prompt and the failure / success handoffs.
+- AskUserQuestion — for the refresh prompt and the failure handoff.
 - Bash — `pwd`, `mkdir -p`, `[ -f ]`, light readiness checks. No mutations beyond directory creation.
 - Read, Grep — for verification only.
 - Edit — only to append `resolution:` to blocker.md.
