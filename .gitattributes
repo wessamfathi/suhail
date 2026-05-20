@@ -1,0 +1,11 @@
+# Northstar is markdown + shell (POSIX bash and PowerShell). The POSIX scripts
+# break with CRLF on macOS/Linux (a stray \r corrupts the shebang and commands),
+# and the repo convention is LF everywhere. Force LF in the working tree on every
+# platform so Windows editors can't silently reintroduce CRLF.
+* text=auto eol=lf
+
+# Explicit for the line-ending-sensitive types (belt and suspenders).
+*.sh   text eol=lf
+*.ps1  text eol=lf
+*.md   text eol=lf
+*.json text eol=lf
