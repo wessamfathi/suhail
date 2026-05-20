@@ -10,6 +10,8 @@ Northstar is a thin coordinator over three specialized roles. This document cove
 | **scout** | Read, Write, Glob, Grep | sonnet | `brief.md` — discovered stack conventions, files to touch, reusable helpers, gotchas, domain risks, and ordered step list |
 | **executer** | Read, Edit, Write, Glob, Grep, Bash | sonnet | `execution.md` — file changes, command results, manual follow-ups |
 | **verifier** | Read, Write, Glob, Grep, Bash | sonnet | `review.md` + `audit.md` — two-pass verdict and findings (review pass: correctness, regressions, convention drift; audit pass: security and compliance) |
+| **discover-scout** | Read, Glob, Grep | haiku (`claude-haiku-4-5-20251001`) | Structured context summary returned as response (no disk write) — Phase 0 grounding for `/ns-discover`. Dispatched exclusively by `/ns-discover`, not by the orchestrator. |
+| **discover-planner** | Read, Write | sonnet | `.northstar/plans/<slug>.md` — Northstar-format plan file. Phase 5 plan-writing for `/ns-discover`. Dispatched exclusively by `/ns-discover`, not by the orchestrator. |
 
 Plus the **orchestrator** (`northstar`) itself: opus, has access to Agent + AskUserQuestion + state I/O, dispatches the roles in sequence. The **indexer** is dispatched only by `/ns-init`, not by the orchestrator — it runs once per project as a precursor.
 
@@ -71,6 +73,20 @@ This design means: to use Northstar in a new domain, you don't extend the verifi
 
 The orchestrator owns `.northstar/state.json` exclusively. It always writes the full file from its in-memory representation; never partial-updates. The schema is documented in `commands/ns.md`.
 
+State writes and STATUS.md rendering are delegated to `northstar-write` (see `## Orchestrator IO scripts` below). The orchestrator pipes the full state JSON to the script on stdin and treats a non-zero exit as a hard blocker.
+
+## Orchestrator IO scripts
+
+Two shell scripts (`scripts/northstar-read.{ps1,sh}` and `scripts/northstar-write.{ps1,sh}`) handle the mechanical I/O operations that would otherwise require the orchestrator to manage file handles, atomic writes, and template rendering inline. The install scripts copy both pairs into `commands/scripts/`.
+
+**`northstar-read`** reads a part directory (`.northstar/parts/<id>/`) and returns a structured JSON summary of the artifacts present — brief.md, execution.md, review.md, audit.md, blocker.md. The orchestrator calls it after subagent dispatch to extract verdict fields and file lists without reading full artifact bodies into its own context.
+
+**`northstar-write`** accepts the full state JSON on stdin, writes `state.json` atomically (write to a temp file, then rename), and renders `STATUS.md` from the state fields — including `tool_version`, which it reads from `state.tool_version` at runtime. No hardcoded version string lives in the script; bumping `tool_version` in the state schema in `commands/ns.md` is sufficient for `STATUS.md` to reflect the new version automatically.
+
+**Why scripts, not agents:** both operations are purely mechanical — JSON field extraction, string substitution, atomic file write. No reasoning or judgment is involved. Using an agent dispatch for these tasks would consume a full subagent context slot and incur LLM latency for a deterministic transform. Scripts also execute synchronously and return a clear exit code, letting the orchestrator treat a non-zero exit as an immediate hard blocker without a dispatch-verify cycle. See `docs/decisions.md` for the full rationale and the alternatives considered.
+
+The script interface is documented in the `## Script contracts` section of `commands/ns.md`.
+
 ## Why the orchestrator lives in the slash command, not as a subagent
 
 The orchestrator's logic is in `commands/ns.md` (the slash command body) rather than `agents/northstar.md` (a subagent). The reason is a Claude Code platform constraint: **subagents invoked via the Agent tool cannot themselves spawn further subagents.** Only the top-level session can dispatch subagents. If the orchestrator were a subagent, it would have no way to call the scout / executer / verifier that it coordinates.
@@ -93,9 +109,15 @@ The precursor gate is enforced by `/ns`, `/northstar`, and `/ns-discover`. The g
 
 `/ns-discover` (`commands/ns-discover.md`) is the upstream companion to `/ns`: it interviews the user about their vision and emits a Northstar-format plan file. It is a slash command, not a subagent, for the same platform reason as the orchestrator — and one additional one specific to its role:
 
-- Like the orchestrator, the discoverer needs `AskUserQuestion`, which is a top-level-session capability. A subagent could call it, but the multi-turn nature of an interview (vision capture → scope confirmation → per-Part deep-dive, with redraft loops) requires the top-level session to hold context across turns. Subagents are one-shot.
-- The discoverer does not dispatch any role subagents. It reads files (existing CLAUDE.md, README, repo layout) for grounding, asks structured questions, and writes a single markdown file. The output is consumed by `/ns` in a later session.
-- The discoverer and the orchestrator are intentionally decoupled. The discoverer never writes to `.northstar/`. Its only output is the plan file at the user's chosen path. This keeps the two commands composable: you can run `/ns-discover` to produce a plan, edit it by hand, then hand it to `/ns` — or skip `/ns-discover` entirely and write the plan yourself.
+- Like the orchestrator, the discoverer needs `AskUserQuestion`, which is a top-level-session capability. The multi-turn nature of an interview (vision capture → scope confirmation → per-Part deep-dive, with redraft loops) requires the top-level session to hold context across turns. Subagents are one-shot and cannot bridge `AskUserQuestion` round-trips.
+
+As of v0.8.0, `/ns-discover` operates as a three-piece split:
+
+- **Phase 0 (silent grounding)** delegates to `discover-scout` (`agents/discover-scout.md`): read-only, one-shot, uses model `claude-haiku-4-5-20251001` (haiku). It scans the repo (CLAUDE.md, README, manifests, directory tree) and returns a structured context summary as its response — no disk write. Appropriate here because the summary is transient context the slash command needs for interview grounding, not an artifact the user needs to inspect or retry. Keeping the scan in a subagent also separates the file-scan context from the interview session's context.
+- **Phases 1–4 (multi-turn interview)** remain in the slash command itself. The command holds structured answers in memory across `AskUserQuestion` turns and builds the answers file at `.northstar/discover/<slug>.answers.md` once the interview concludes. This answers file is the IPC artifact between the command and the next phase — same files-as-IPC contract as the rest of the pipeline.
+- **Phase 5 (plan-writing)** delegates to `discover-planner` (`agents/discover-planner.md`): write-only, one-shot, sonnet. It reads the answers file and writes a Northstar-format plan to `.northstar/plans/<slug>.md`. Putting plan-writing in a subagent keeps the slash command's context bounded and makes the plan-writing step independently retryable.
+
+The discoverer and the orchestrator are intentionally decoupled. Its primary output is the plan file at the user's chosen path — this keeps the two commands composable: you can run `/ns-discover` to produce a plan, edit it by hand, then hand it to `/ns` — or skip `/ns-discover` entirely and write the plan yourself.
 
 ## Context window impact
 
@@ -113,7 +135,7 @@ What does NOT enter the top-level context:
 
 A 50-Part run accumulates roughly 5–10K tokens of narration plus the recurring ~15K orchestrator prompt — well within Claude Code's auto-compaction threshold. The trade-off relative to the original "orchestrator as subagent" idea: that design would have isolated even the narration into a separate context, so the top-level session would have seen only the final summary. With the slash-command-orchestrator design, you see the full per-Part narration in your session, which is actually useful for situational awareness — and the heavy artifact bodies still don't enter your context.
 
-`.northstar/STATUS.md` is regenerated from state every tick. It's the human-readable view, never read back by the orchestrator.
+`.northstar/STATUS.md` is regenerated from state every tick by `northstar-write` (see `## Orchestrator IO scripts`). It's the human-readable view, never read back by the orchestrator.
 
 Each Part has its own subdirectory of artifacts. Retries do not delete prior artifacts — they suffix the new attempt with `-attempt-N` and the old ones with `.orig.md` (on `retry` command) or just append (within normal retry loops). The full history is preserved for inspection.
 

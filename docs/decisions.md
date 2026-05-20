@@ -6,6 +6,24 @@ Append new entries at the top. Each entry has a date, a one-line headline, what 
 
 ---
 
+## 2026-05-20 — Orchestrator IO (state write + artifact read) moved to shell scripts
+
+**Decided:** `northstar-write.{ps1,sh}` handles atomic `state.json` writes and STATUS.md rendering; `northstar-read.{ps1,sh}` handles artifact parsing (reading part-dir markdown files and returning a structured JSON summary). The orchestrator invokes these as external scripts via stdin/stdout, not as agent dispatches.
+
+**Why:** both operations are purely mechanical — JSON field extraction, string substitution, atomic file write, template rendering. No reasoning or judgment is required. Implementing them as agents would waste a full subagent context slot (and incur LLM latency) on a deterministic transform. Scripts execute synchronously and return a clear exit code, letting the orchestrator treat a non-zero exit as a hard blocker without a dispatch-verify cycle. The STATUS.md template previously inline in `commands/ns.md` is now owned by `northstar-write`, which reads `tool_version` from the incoming state JSON at runtime — eliminating a third version-sync point from the release checklist.
+
+**Considered alternatives:** an `ns-writer` subagent was considered in the pre-run analysis (`docs/script-extraction-candidates.md`); rejected because the agent dispatch overhead and async return pattern is heavier than the task warrants, and because adding an agent for a deterministic operation would contradict the principle that agents are reserved for tasks requiring LLM judgment (stack discovery, code generation, review). The blocker that surfaced during the original ns-writer design attempt confirmed the approach was wrong-sized for the problem.
+
+---
+
+## 2026-05-20 — Interview stays in the slash command; scan and author move to agents
+
+**Decided:** the multi-turn interview logic remains in `commands/ns-discover.md` (top-level slash command) because `AskUserQuestion` and cross-turn context require the top-level session. Phase 0 (silent grounding scan) moves to `discover-scout`: read-only, one-shot, uses model `claude-haiku-4-5-20251001`, returns a structured summary as its response rather than writing a file — appropriate because it produces no artifact the user needs to inspect or retry, only context the command needs for the interview. Phase 5 (plan-writing) moves to `discover-planner`: write-only, one-shot, consumes the answers file at `.northstar/discover/<slug>.answers.md` — same files-as-IPC contract as all other Northstar roles, keeping the command's context bounded and the plan-writing step independently retryable.
+
+**Why the interview itself cannot be a subagent:** subagents are one-shot; a multi-turn interview requires holding context across `AskUserQuestion` round-trips, which only the top-level session supports.
+
+---
+
 ## 2026-05-15 — Orchestrator never improvises for a failing subagent
 
 **Decided:** the orchestrator runs explicit output verification after every `Agent(...)` dispatch. If an artifact is missing, empty, or lacks the role's expected H2 sentinel sections, the orchestrator writes a blocker.md (`from: orchestrator`) and routes to `needs_user`. It does NOT fabricate the missing content.

@@ -2,6 +2,30 @@
 
 All notable changes to Northstar are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] — 2026-05-20
+
+### Added
+- `northstar-read.{ps1,sh}` (`scripts/northstar-read.ps1`, `scripts/northstar-read.sh`): artifact parser that reads a part directory and returns a structured JSON summary. Install scripts copy both into `commands/scripts/`.
+- `northstar-write.{ps1,sh}` (`scripts/northstar-write.ps1`, `scripts/northstar-write.sh`): atomic state writer and STATUS.md renderer. Accepts full state JSON on stdin, writes `state.json` atomically, and renders `STATUS.md` from `state.tool_version` at runtime. Now owns the STATUS.md template previously inline in `commands/ns.md`. Install scripts copy both into `commands/scripts/`.
+
+### Changed
+- `commands/ns.md` rewired to pipe state JSON to `northstar-write` (via stdin) and call `northstar-read` for artifact parsing. The orchestrator no longer writes `state.json` directly.
+- Inline `## STATUS.md generation` template removed from `commands/ns.md`; generation is now fully delegated to `northstar-write`.
+- `## Script contracts` section added to `commands/ns.md` documenting the stdin/stdout interface for `northstar-read` and `northstar-write`.
+- `/ns-init` and `/ns-discover` terminal handoffs quieted — finish confirmation is now a single narration sentence rather than a multi-line block.
+- `/ns-auto` finish confirmation quieted to match.
+- `state.tool_version` bumped to `0.9.0`.
+
+## [0.8.0] — 2026-05-20
+
+### Added
+- `discover-scout` agent (`agents/discover-scout.md`): read-only, one-shot Phase 0 grounding agent dispatched by `/ns-discover`. Uses model `claude-haiku-4-5-20251001` (haiku). Scans the repo silently and returns a structured context summary as its response — no disk write. Keeps the interview session's context separate from the file-scan context.
+- `discover-planner` agent (`agents/discover-planner.md`): write-only, one-shot Phase 5 plan-writing agent dispatched by `/ns-discover`. Uses sonnet. Consumes the answers file at `.northstar/discover/<slug>.answers.md` and writes a Northstar-format plan to `.northstar/plans/<slug>.md`.
+
+### Changed
+- `/ns-discover` now delegates Phase 0 silent grounding to `discover-scout` and Phase 5 plan-writing to `discover-planner`. The slash command retains the multi-turn interview (Phases 1–4) because `AskUserQuestion` and cross-turn context require the top-level session. The answers file at `.northstar/discover/<slug>.answers.md` is the IPC artifact between the command and `discover-planner` — same files-as-IPC contract as the rest of the pipeline.
+- State schema `tool_version` bumped to `0.8.0`.
+
 ## [0.7.2] — 2026-05-19
 
 ### Added

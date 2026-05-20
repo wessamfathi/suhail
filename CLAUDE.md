@@ -36,9 +36,9 @@ LICENSE                # MIT.
 
 ## Version bumps
 
-`tool_version` appears in three places — keep all three in sync on every release:
+`tool_version` appears in two places inside `commands/ns.md` plus two other files — keep all in sync on every release:
 
-1. `commands/ns.md` — heading (`# /ns (alias: /northstar) — Northstar vX.Y.Z`) and the `tool_version` field inside the state schema block, and the STATUS.md template header.
+1. `commands/ns.md` — heading (`# /ns (alias: /northstar) — Northstar vX.Y.Z`) and the `tool_version` field inside the state schema block. These are the only two sync points in `commands/ns.md`. The write scripts (`scripts/northstar-write.{ps1,sh}`) render `tool_version` from `state.tool_version` at runtime and do not hardcode a version string — no separate edit needed there.
 2. `README.md` — the footer line "Northstar vX.Y.Z. Telemetry: none."
 3. `CHANGELOG.md` — new section header `## [X.Y.Z] — YYYY-MM-DD`.
 
