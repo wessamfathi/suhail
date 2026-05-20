@@ -11,10 +11,17 @@ Run a fixture with:
 After the run, clean up:
 
 ```powershell
-/ns abort
+/ns-abort
+.\scripts\northstar-clean.ps1
+# (POSIX: ./scripts/northstar-clean.sh)
+```
+
+Or manually:
+
+```powershell
 Remove-Item -Recurse -Force .northstar
-Remove-Item -Force .northstar-smoketest*.txt -ErrorAction SilentlyContinue
-Remove-Item -Force .northstar-deps-*.txt -ErrorAction SilentlyContinue
+Remove-Item -Force .northstar-*.txt -ErrorAction SilentlyContinue
+# (POSIX: rm -rf .northstar && rm -f .northstar-*.txt)
 ```
 
 ## Fixtures
@@ -45,6 +52,24 @@ This fixture cannot be fully automated — by design, it requires a human (you) 
 ### `discover_sample_plan.md` — example `/ns-discover` output
 
 **Not a runnable fixture.** A representative plan file showing what `/ns-discover` produces after a successful interview. Use it to sanity-check the discovery command's output shape, or as a learning-by-example reference for the plan-format contract. Do not pass it to `/ns` — the Parts reference paths that don't exist in this repo.
+
+### `parallel-verifier-plan.md` — parallel verifier dispatch
+
+Three-Part plan that exercises parallel verifier dispatch. Part 1 (level 0) runs first — scout, executer, and verifier execute in order. Parts 2 and 3 (both level 1, both depending on Part 1) execute serially as executers; then both verifiers fire in parallel in the same assistant turn and both return `clean`. Expected artifacts:
+
+- `.northstar-pv-smoketest-base.txt` — created by Part 1.
+- `.northstar-pv-smoketest-a.txt` — created by Part 2.
+- `.northstar-pv-smoketest-b.txt` — created by Part 3.
+- `.northstar/STATUS.md` shows all three Parts as `done`.
+
+### `skip_flow.md` — /ns-skip flow
+
+Two-Part plan that exercises the `/ns-skip` command. Part 1 runs normally and creates `.northstar-skip-1.txt`. The contributor then invokes `/ns-skip` at the orchestrator's Continue prompt to skip Part 2. Tests that:
+- The orchestrator marks the skipped Part as `skipped` in `STATUS.md` without invoking the executer.
+- The skipped Part's marker file (`.northstar-skip-2.txt`) is never created.
+- The run completes normally after the skip.
+
+**Requires a manual step:** after Part 1 completes, type `/ns-skip` instead of confirming Continue.
 
 ## Adding a new fixture
 
