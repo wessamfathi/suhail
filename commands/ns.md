@@ -1,9 +1,9 @@
 ---
 description: Execute any structured plan via scout/executer/verifier subagents with state persistence and per-Part pauses. Generic — works against any codebase.
-argument-hint: <plan-path> | autorun <plan-path> | (empty) | status | skip | retry | run-to <part-id> | abort
+argument-hint: <plan-path> | autorun <plan-path> | (empty) | retry | run-to <part-id>
 ---
 
-# /ns (alias: /northstar) — Northstar v0.9.0
+# /ns (alias: /northstar) — Northstar v0.10.0
 
 You are the **Northstar orchestrator**. You dispatch role subagents (scout, executer, verifier) and persist state across invocations. You write no product code yourself.
 
@@ -13,14 +13,13 @@ User arguments: `$ARGUMENTS`
 
 | Shape | Action |
 |---|---|
-| `<plan-path>` | INIT a new run. If `.northstar/state.json` exists: check `run_phase == "finished"` OR `aborted == true` — if so, offer auto-cleanup (see INIT step 0b). Otherwise refuse ("A run is already in progress — run `/ns abort` first."). |
+| `<plan-path>` | INIT a new run. If `.northstar/state.json` exists: check `run_phase == "finished"` OR `aborted == true` — if so, auto-clean it without prompting (see INIT step 0b). Otherwise refuse ("A run is already in progress — run `/ns-abort` first."). |
 | `autorun <plan-path>` | INIT a new run in autorun mode. Sets `mode = "autorun"`, `auto_approve_planner = true`. Same existing-state guard as `<plan-path>`. |
 | `(empty)` or `continue` | Advance state one logical step. |
-| `status` | Read `.northstar/STATUS.md` and emit it verbatim. End turn. Do NOT advance state. |
-| `skip` | Mark `current_part_id` as `status: skipped`. Pick next Part. Pipe updated state JSON to `northstar-write`. AskUserQuestion: "Part N skipped. Continue to Part M? (Continue / Pause)". |
 | `retry` | Reset `current_part_id`'s `attempts` to 0 and `current_step` to `scouting`. Rename existing artifacts to `*.orig.md`. Re-tick. |
 | `run-to <part-id>` | Validate target exists. Set `mode = "run-to"`, `run_to = <part-id>`, `auto_approve_planner = true`. Re-tick. |
-| `abort` | Set `aborted: true`. Pipe updated state JSON (`aborted: true`, updated `updated_at`) to `northstar-write`. End with one-sentence confirmation. Do NOT delete `.northstar/`. |
+
+Separate single-shot commands handle the rest: `/ns-status` (print the dashboard), `/ns-skip` (skip the current Part), and `/ns-abort` (abort the run).
 
 ## Plan format
 
@@ -40,7 +39,7 @@ User arguments: `$ARGUMENTS`
 ## INIT
 
 0. Verify `.northstar/intel/` has all four files (`stack.md`, `layout.md`, `conventions.md`, `modules.md`) via `Test-Path` / `[ -f ]`. If any missing: "Project intel required — run /ns-init first." Do NOT create `state.json`. Read all four intel files and retain them in context for the session.
-0b. If `.northstar/state.json` already exists: read it. If `run_phase == "finished"` OR `aborted == true`: AskUserQuestion: "Previous run for `<plan_filename>` is **<finished|aborted>**. Delete its state and start a new run?" (options: `Yes, start fresh` / `No, keep state`). On `Yes`: delete `state.json` (PowerShell: `Remove-Item .northstar\state.json`; POSIX: `rm .northstar/state.json`) and continue to step 1. On `No`: end turn. If `state.json` exists and the run is neither finished nor aborted: refuse — "A run is already in progress — run `/ns abort` first." Do NOT create `state.json`.
+0b. If `.northstar/state.json` already exists: read it. If `run_phase == "finished"` OR `aborted == true`: auto-clean without prompting — delete `state.json` AND the stale per-Part artifacts from the prior run (PowerShell: `Remove-Item .northstar\state.json, .northstar\STATUS.md -ErrorAction SilentlyContinue; Remove-Item -Recurse -Force .northstar\parts -ErrorAction SilentlyContinue`; POSIX: `rm -f .northstar/state.json .northstar/STATUS.md && rm -rf .northstar/parts`), narrate one sentence ("🧭 Orchestrator — cleared <finished|aborted> state for `<plan_filename>` — starting fresh."), and continue to step 1. Clearing `parts/` prevents a fresh run from adopting stale `brief.md`/`execution.md` files left by a prior run on a different plan; intel under `.northstar/intel/` is never touched. If `state.json` exists and the run is neither finished nor aborted: refuse — "A run is already in progress — run `/ns-abort` first." Do NOT create `state.json`.
 1. Read plan file. Compute SHA-256.
 2. Parse Parts per contract above.
 3. Build `parts` array (`status: pending`, `attempts: 0`, `files_changed: []`, `artifacts: {}`). Compute DAG levels: level 0 = no deps; each Part's level = `1 + max(dep levels)`. Cycle detection → write `blocker.md` (`from: orchestrator`), do NOT create `state.json`, end turn.
@@ -83,7 +82,7 @@ Prepend every scout/executer/verifier dispatch with:
 ```json
 {
   "version": 1,
-  "tool_version": "0.9.0",
+  "tool_version": "0.10.0",
   "plan_path": "<as provided>",
   "plan_sha256": "<hex>",
   "started_at": "<ISO 8601>",
@@ -322,7 +321,7 @@ Status dot legend: 🟢 done · 🔵 active · 🟡 flagged/skipped · 🔴 bloc
 AskUserQuestion with `options` plus "Other (free text)". On next invocation: append `resolution: <answer>` to blocker.md (Edit). Record in `global_decisions`. Set status back to the phase that raised the blocker (`from:` field: `scout` → `scouting`, `executer` → `executing`, `verifier` → `verifying`, `orchestrator` → retry current phase). Re-tick.
 
 ### `aborted`
-Narrate: "🧭 Orchestrator — run aborted." End turn. (State was already written by the `abort` argument handler's `northstar-write` call.)
+Narrate: "🧭 Orchestrator — run aborted." End turn. (State was already written by `/ns-abort` or an in-run Abort choice's `northstar-write` call.)
 
 ### `noop`
 Narrate: "🧭 Orchestrator — unexpected state: <directive.reason>." AskUserQuestion: "Unexpected state — continue or abort?" (options: `Continue / Abort`).

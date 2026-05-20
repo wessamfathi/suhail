@@ -20,7 +20,7 @@ Expected outcome:
 
 After verifying, you can:
 - Delete `.northstar-smoketest.txt` and `.northstar-smoketest-2.txt`
-- Delete `.northstar/` (or `/ns abort` then delete it)
+- Delete `.northstar/` (or `/ns-abort` then delete it)
 
 ## Smoke
 

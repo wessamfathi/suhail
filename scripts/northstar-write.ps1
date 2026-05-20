@@ -247,9 +247,17 @@ foreach ($part in $parts) {
 $globalDecisions = if ($null -ne $payload.global_decisions) { $payload.global_decisions } else { @() }
 if ($null -ne $globalDecisions -and @($globalDecisions).Count -gt 0) {
     foreach ($dec in $globalDecisions) {
-        $decDate = if ($null -ne $dec.date) { $dec.date } else { "" }
-        $decText = if ($null -ne $dec.text) { $dec.text } else { "" }
-        [void]$sb.Append("- $decDate $mdash $decText$nl")
+        if ($dec -is [string]) {
+            [void]$sb.Append("- $dec$nl")
+        } else {
+            $decDate = if ($null -ne $dec.date) { $dec.date } else { "" }
+            $decText = if ($null -ne $dec.text) { $dec.text } else { "" }
+            if ($decDate -ne "") {
+                [void]$sb.Append("- $decDate $mdash $decText$nl")
+            } else {
+                [void]$sb.Append("- $decText$nl")
+            }
+        }
     }
 } else {
     [void]$sb.Append("None.$nl")

@@ -33,7 +33,7 @@ Run with:
 
 After verifying, clean up:
 ```powershell
-/ns abort
+/ns-abort
 Remove-Item -Recurse -Force .northstar
 Remove-Item -Force .northstar-blocker-test.txt -ErrorAction SilentlyContinue
 ```

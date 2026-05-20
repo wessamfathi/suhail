@@ -141,6 +141,6 @@ If you already have a plan file using a different separator (e.g. `### Part 1: F
 
 ## Validation
 
-To check whether a plan parses cleanly without starting a run, you can `/ns <plan-path>` then choose "Show parsed structure" at the INIT prompt, then `/ns abort`. This is a non-destructive way to validate.
+To check whether a plan parses cleanly without starting a run, you can `/ns <plan-path>` then choose "Show parsed structure" at the INIT prompt, then `/ns-abort`. This is a non-destructive way to validate.
 
 A future release may add `/ns validate <plan-path>` as a dedicated read-only check.
