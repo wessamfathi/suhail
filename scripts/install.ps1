@@ -96,7 +96,7 @@ Get-ChildItem -Path $srcCommands -Filter *.md | ForEach-Object {
 }
 
 $srcScripts = Join-Path $repoRoot "scripts"
-@("northstar-tick.ps1", "northstar-tick.sh", "northstar-read.ps1", "northstar-read.sh", "northstar-write.ps1", "northstar-write.sh") | ForEach-Object {
+@("northstar-tick.ps1", "northstar-tick.sh", "northstar-read.ps1", "northstar-read.sh", "northstar-write.ps1", "northstar-write.sh", "northstar-clean.ps1", "northstar-clean.sh") | ForEach-Object {
     $src = Join-Path $srcScripts $_
     if (Test-Path $src) {
         $dest = Join-Path $destCommandsScripts $_

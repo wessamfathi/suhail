@@ -105,7 +105,7 @@ for f in "$SRC_COMMANDS"/*.md; do
   install_file "$f" "$DEST_COMMANDS/$(basename "$f")" || STATUS=1
 done
 
-for f in northstar-tick.ps1 northstar-tick.sh northstar-read.ps1 northstar-read.sh northstar-write.ps1 northstar-write.sh; do
+for f in northstar-tick.ps1 northstar-tick.sh northstar-read.ps1 northstar-read.sh northstar-write.ps1 northstar-write.sh northstar-clean.ps1 northstar-clean.sh; do
   src="$REPO_ROOT/scripts/$f"
   [[ -f "$src" ]] || continue
   install_file "$src" "$DEST_COMMANDS_SCRIPTS/$f" || STATUS=1

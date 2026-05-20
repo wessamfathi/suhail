@@ -32,12 +32,18 @@ Northstar is a prompt pipeline, so the practical test is end-to-end against fixt
    /ns fixtures/test_plan.md
    ```
    Walk it through. Expected outcomes are documented at the top of each fixture.
-2. For changes that touch dependency handling, multi-Part flow, or blocker protocols, run the additional fixtures (see `fixtures/README.md`).
+2. For changes that touch dependency handling, multi-Part flow, blocker protocols, or the skip flow, run the additional fixtures (see `fixtures/README.md`).
 3. After each run, clean up so the next run starts fresh:
    ```powershell
-   /ns abort
+   /ns-abort
+   .\scripts\northstar-clean.ps1
+   # (POSIX: ./scripts/northstar-clean.sh)
+   ```
+   Or manually:
+   ```powershell
    Remove-Item -Recurse -Force .northstar
-   Remove-Item -Force .northstar-smoketest.txt -ErrorAction SilentlyContinue
+   Remove-Item -Force .northstar-*.txt -ErrorAction SilentlyContinue
+   # (POSIX: rm -rf .northstar && rm -f .northstar-*.txt)
    ```
 4. For changes that affect scout convention-discovery, also try the pipeline against a real project (<private-project>'s `<private-plan>.md` is a good integration target if you have access to that repo).
 

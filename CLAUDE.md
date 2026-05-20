@@ -57,9 +57,9 @@ Northstar is hard to unit-test — it's a prompt pipeline. The practical test is
 3. Run `/ns fixtures/test_plan.md` and walk it through. Expected behaviors are documented at the top of each fixture file.
 4. After each run, clean up:
    ```powershell
-   /ns abort       # if still in-flight
+   /ns-abort       # if still in-flight
    Remove-Item -Recurse -Force .northstar
-   Remove-Item -Force .northstar-smoketest.txt   # if it exists
+   Remove-Item -Force .northstar-*.txt -ErrorAction SilentlyContinue
    ```
 5. For changes that touch convention discovery (scout) or stack-conventions plumbing, also run against the <private-project> fixture (`<dev-dir>\tot\<private-plan>.md`) since that exercises a real project.
 
