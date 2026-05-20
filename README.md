@@ -51,7 +51,7 @@ Don't have a plan file yet? Let Northstar interview you and draft one:
 /ns-discover
 ```
 
-`/ns-discover` is an interactive slash command that asks you about the vision, scope, dependencies, and per-Part detail, then writes a markdown plan in the exact format `/ns` expects. Hand the output path to `/ns` to execute it. Optional argument: a target output path (defaults to `.northstar/plans/<slug>.md`).
+`/ns-discover` is an interactive slash command that interviews you about the vision, scope, dependencies, and per-Part detail, then writes a markdown plan in the exact format `/ns` expects. The command orchestrates three phases: Phase 0 delegates to `discover-scout` (haiku, read-only, no Write tool) which silently scans the repo and returns a structured context summary; Phases 1–4 conduct the multi-turn interview in the top-level session; Phase 5 delegates to `discover-planner` (sonnet) which consumes the answers file and writes the plan. Hand the output path to `/ns` to execute it. Optional argument: a target output path (defaults to `.northstar/plans/<slug>.md`).
 
 ## Quickstart
 
@@ -92,7 +92,7 @@ Expected result: a `.northstar-smoketest.txt` file containing `northstar smoke o
 | `/ns retry` | Reset the current Part's retry counter and re-run from `researching`. |
 | `/ns run-to <part-id>` | Auto-advance through Parts up to and including `<part-id>`. Pauses only on blockers; bypasses per-Part and scout-approval pauses for the duration. |
 | `/ns abort` | Set the run status to `aborted`. Does not delete artifacts. |
-| `/ns-discover [output-path]` | Interview the user and write a Northstar-format plan file. Independent of any active run; requires intel. |
+| `/ns-discover [output-path]` | Interview the user and write a Northstar-format plan file. Delegates Phase 0 grounding to `discover-scout` (haiku, read-only) and Phase 5 plan-writing to `discover-planner` (sonnet). Independent of any active run; requires intel. |
 | `/ns-next` | Auto-advance the current Northstar run by exactly one logical step. Zero-argument shortcut for "next" — performs no INIT, does not loop in `run-to` mode, and auto-approves the scout only at `awaiting_plan_approval`. Requires an active run. |
 | `/ns-auto [plan-path]` | Auto-detect the most recent plan and run it in autorun mode. |
 
@@ -181,4 +181,4 @@ MIT. See [`LICENSE`](LICENSE).
 
 ## Status
 
-Northstar v0.7.2. Telemetry: none. Issues and PRs welcome.
+Northstar v0.9.0. Telemetry: none. Issues and PRs welcome.

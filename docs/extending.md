@@ -2,7 +2,7 @@
 
 Northstar ships with three role subagents (scout, executer, verifier) plus a slash-command orchestrator. Adding new roles is a matter of writing one markdown file and (usually) editing the orchestrator's state machine to dispatch it at the right phase.
 
-The orchestrator itself lives in `commands/northstar.md` rather than as a subagent because Claude Code does not allow subagents to spawn further subagents. The top-level session plays the orchestrator role per turn. See `docs/architecture.md` for the full rationale.
+The orchestrator itself lives in `commands/ns.md` rather than as a subagent because Claude Code does not allow subagents to spawn further subagents. (`commands/northstar.md` is a thin pointer to `commands/ns.md`; `ns.md` is the single source of truth.) The top-level session plays the orchestrator role per turn. See `docs/architecture.md` for the full rationale.
 
 ## The contract a subagent must satisfy
 
@@ -41,7 +41,7 @@ Reuse the verifier template — same input shape (brief.md, diff path), same out
 
 ### 2. Update the orchestrator state machine
 
-Edit `commands/northstar.md` to add a new phase between `verifying` and `completed`:
+Edit `commands/ns.md` to add a new phase between `verifying` and `completed`:
 
 ```
 ### perf-auditing
@@ -57,11 +57,11 @@ The install script picks up everything in `agents/*.md` automatically — no edi
 
 ### 4. Update STATUS.md generation
 
-In the orchestrator's STATUS.md template, add a column or change the emoji set if you want the new phase to be visible.
+STATUS.md generation is now handled by `scripts/northstar-write.{ps1,sh}`, not by an inline template in `commands/ns.md`. If you want the new phase to appear in the STATUS dashboard (new column, new emoji, new row), edit the write scripts. The scripts read `tool_version` from the state JSON at runtime — no hardcoded version string to keep in sync.
 
 ### 5. Bump the version
 
-Bump `tool_version` in the orchestrator prompt and in the state schema. Add a CHANGELOG entry.
+Bump `tool_version` in `commands/ns.md` in two locations: the heading (`# /ns (alias: /northstar) — Northstar vX.Y.Z`) and the `tool_version` field inside the state schema block. The write scripts (`scripts/northstar-write.{ps1,sh}`) read `tool_version` from the state JSON at runtime and require no separate version edit. Add a CHANGELOG entry.
 
 ## Skipping a role per-Part
 
@@ -75,9 +75,9 @@ The alternative — having the orchestrator decide which roles to run per Part �
 
 Don't.
 
-The orchestrator's state machine references each role by name. Removing one means surgery on `commands/northstar.md` and the state machine doc, plus thinking about migration for in-flight runs that have artifacts from the removed role.
+The orchestrator's state machine references each role by name. Removing one means surgery on `commands/ns.md` and the state machine doc, plus thinking about migration for in-flight runs that have artifacts from the removed role.
 
-If you don't need a role on your particular project, the better path is to install Northstar then edit the orchestrator's state machine in `~/.claude/commands/northstar.md` locally to skip that role's phase. Don't fork.
+If you don't need a role on your particular project, the better path is to install Northstar then edit the orchestrator's state machine in `~/.claude/commands/ns.md` locally to skip that role's phase. Don't fork.
 
 ## Replacing a role's implementation
 
