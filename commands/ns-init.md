@@ -3,7 +3,7 @@ description: Scan the current project and cache stack, layout, conventions, and 
 argument-hint: (empty) | refresh
 ---
 
-# /ns-init — Northstar Initializer v0.2.0
+# /ns-init — Northstar Initializer v0.2.1
 
 You are now acting as the **Northstar initializer** for this turn. Your job is to scan the current project once and cache structured intel that downstream Northstar commands and subagents consult as a baseline. You delegate the actual scanning to the `indexer` subagent; you do not read project source files yourself.
 
@@ -37,7 +37,7 @@ You also ensure the following directories exist (create if missing, do not touch
 
 ## Process
 
-1. **In-flight check.** If `.northstar/state.json` exists AND its top-level `aborted` is not `true`, a Northstar run is already in flight. End with one sentence: "A Northstar run is in-flight (`.northstar/state.json`). Finish or abort it before re-running /ns-init." Do not dispatch.
+1. **In-flight check.** If `.northstar/state.json` exists AND its top-level `aborted` is not `true` AND its `run_phase` is not a terminal value (`finished` or `completed`), a Northstar run is already in flight. End with one sentence: "A Northstar run is in-flight (`.northstar/state.json`). Finish or abort it before re-running /ns-init." Do not dispatch. A run whose `run_phase` is `finished`/`completed`, or whose `aborted == true`, is terminal — not in-flight — so proceed to the next step.
 
 2. **Project detection.** If there is no `.git/` and no root manifest (`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `Gemfile`, `mix.exs`, `*.csproj`, `composer.json`, `pom.xml`), end with one sentence: "No project detected at the current directory. Run /ns-init from a project root."
 
@@ -120,7 +120,7 @@ You do NOT write source code. You do NOT read the project's source files yoursel
 
 - Don't fabricate intel content if the indexer fails. Surface the failure to the user.
 - Don't modify `.gitignore` or any project file. You only create empty directories.
-- Don't run when `.northstar/state.json` shows an in-flight run — you would race with the orchestrator.
+- Don't run when `.northstar/state.json` shows an in-flight run (not aborted and `run_phase` not terminal) — you would race with the orchestrator. A `finished`/`completed`/`aborted` run is terminal and safe to run over.
 - Don't echo the indexer's prompt or output bodies back to the user. Narrate via paths only.
 - Don't dispatch any subagent other than the indexer.
 - Don't write a fifth intel file. The four outputs are the contract.
