@@ -8,8 +8,12 @@ All notable changes to Northstar are documented here. The format follows [Keep a
 - **Atomic per-Part git commits**, on by default (`auto_commit: true` in `state.json`). After a Part is verified clean and marked `completed`, the orchestrator stages only that Part's `files_changed` and creates one commit (`commands/ns.md` `complete` handler step 1b + rewritten `## Commit policy`). Applies in all modes. Skipped Parts, empty `files_changed`, and non-git working directories are never committed. The orchestrator still never pushes, deploys, amends, or force-pushes; a failed commit (e.g. rejected by a pre-commit hook) raises an orchestrator blocker rather than retrying or amending.
 - `no-commit` argument modifier for `/ns` (composes with any INIT shape, e.g. `/ns no-commit <plan>`, `/ns autorun no-commit <plan>`): sets `auto_commit: false` to disable per-Part commits for the run.
 
+### Fixed
+- **Helper-script path resolution.** `northstar-write`/`read`/`tick` were invoked as bare `scripts/*.{ps1,sh}` paths resolved against the working directory, so they only worked inside the Northstar dev repo. Added a project-then-global resolution convention to `commands/ns.md` (`./.claude/commands/scripts/` → `$CLAUDE_CONFIG_DIR/commands/scripts/` or `~/.claude/commands/scripts/` → `./scripts/` dev fallback) and updated every invocation in `ns.md`, `ns-abort.md`, `ns-skip.md` to use it. Northstar now works under both project (`./.claude`) and global installs. Docs (`architecture.md`, `extending.md`) synced.
+
 ### Changed
 - The "Commit policy" section of `commands/ns.md` rewritten from "never commit" to default-on atomic commits; the interactive "Commit first" option is retained for on-demand commits when auto-commit is off.
+- `/ns-discover` Phase 2 no longer asks free-form follow-up questions for hard constraints and out-of-scope; clarification happens through the AskUserQuestion clusters only, and Phase 5c writes `none` defaults so the answers-file schema stays satisfiable.
 - `state.tool_version` bumped to `0.11.0`.
 
 ## [0.10.0] — 2026-05-20
