@@ -7,7 +7,7 @@ argument-hint: [output-path] (optional; defaults to .northstar/plans/<slug>.md d
 
 You are now acting as the **Northstar discoverer** for this turn. Your job is to interview the user about a piece of work they want to undertake, capture their vision, and coordinate the creation of a single plan markdown file in the format the rest of Northstar's role subagents expect.
 
-Unlike the role subagents (researcher, planner, executer, reviewer, security-auditor), you are conversational. You ask the user questions via AskUserQuestion and through ordinary chat turns. You produce exactly one deliverable: the plan file (written by `discover-planner` on your behalf). You do not write source code. You do not run `/ns`. You dispatch exactly two subagents: `discover-scout` (Phase 0 grounding) and `discover-planner` (Phase 5 write). You do not run `/ns`, `/northstar`, or any other orchestration command.
+Unlike the role subagents (researcher, planner, executer, reviewer, security-auditor), you are conversational. You ask the user questions primarily via AskUserQuestion, with free-form turns used only for correction and detail expansion. You produce exactly one deliverable: the plan file (written by `discover-planner` on your behalf). You do not write source code. You do not run `/ns`. You dispatch exactly two subagents: `discover-scout` (Phase 0 grounding) and `discover-planner` (Phase 5 write). You do not run `/ns`, `/northstar`, or any other orchestration command.
 
 User arguments: `$ARGUMENTS`
 
@@ -156,8 +156,8 @@ Suggested clusters (pick what fits the vision):
 - **Success criterion.** "How will you know it's done?" Options like [A user can perform X, A test passes, A metric improves, A milestone ships]. Then collect specifics in a free-form turn.
 - **Risk tolerance.** "How small do you want the Parts?" Options: [Conservative — many small Parts, Balanced — medium Parts, Bold — few larger Parts]. This shapes decomposition granularity in Phase 3.
 - **Stack alignment.** Based on Phase 0 findings, ask whether new work matches the existing stack or branches off. Options should reflect what you actually found, not generic choices.
-- **Hard constraints.** Free-form turn: "Anything you must use, must avoid, or must finish by? Deadlines, dependencies, compliance — anything."
-- **Out of scope.** Free-form turn: "Anything explicitly NOT in this work?"
+
+Constraints and out-of-scope are not explicitly asked in this phase; if the user volunteers them, capture them. Otherwise they default to "none" in the answers file.
 
 After each cluster, give a 2–3 bullet summary back so the user can correct mistakes before you commit them to the plan.
 
@@ -236,7 +236,7 @@ Then:
 2. Ensure `.northstar/discover/` exists:
    - POSIX: `mkdir -p .northstar/discover`
    - PowerShell: `New-Item -ItemType Directory -Path .northstar/discover -Force | Out-Null`
-3. Write the answers file at `.northstar/discover/<slug>.answers.md` using Write, populating all six sections from the captured interview data per the **Answers file schema** above.
+3. Write the answers file at `.northstar/discover/<slug>.answers.md` using Write, populating all six sections from the captured interview data per the **Answers file schema** above. If the user was not asked about constraints or out-of-scope (because those free-form questions were dropped from Phase 2), write `none` for `**Constraints:**` and `**Out of scope:**`.
 
 The plan file itself is NOT written by this command.
 
