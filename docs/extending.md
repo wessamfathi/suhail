@@ -57,11 +57,11 @@ The install script picks up everything in `agents/*.md` automatically — no edi
 
 ### 4. Update STATUS.md generation
 
-STATUS.md generation is now handled by `scripts/northstar-write.{ps1,sh}`, not by an inline template in `commands/ns.md`. If you want the new phase to appear in the STATUS dashboard (new column, new emoji, new row), edit the write scripts. The scripts read `tool_version` from the state JSON at runtime — no hardcoded version string to keep in sync.
+STATUS.md generation is now handled by `northstar-write.{ps1,sh}` (installed to `commands/scripts/`), not by an inline template in `commands/ns.md`. If you want the new phase to appear in the STATUS dashboard (new column, new emoji, new row), edit the write scripts in their installed location. The scripts read `tool_version` from the state JSON at runtime — no hardcoded version string to keep in sync.
 
 ### 5. Bump the version
 
-Bump `tool_version` in `commands/ns.md` in two locations: the heading (`# /ns (alias: /northstar) — Northstar vX.Y.Z`) and the `tool_version` field inside the state schema block. The write scripts (`scripts/northstar-write.{ps1,sh}`) read `tool_version` from the state JSON at runtime and require no separate version edit. Add a CHANGELOG entry.
+Bump `tool_version` in `commands/ns.md` in two locations: the heading (`# /ns (alias: /northstar) — Northstar vX.Y.Z`) and the `tool_version` field inside the state schema block. The write scripts (`northstar-write.{ps1,sh}`, installed to `commands/scripts/` and resolved via the project-then-global lookup defined in `## Script-path resolution` in `commands/ns.md`) read `tool_version` from the state JSON at runtime and require no separate version edit. Add a CHANGELOG entry.
 
 ## Skipping a role per-Part
 

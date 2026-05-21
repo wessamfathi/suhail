@@ -77,7 +77,9 @@ State writes and STATUS.md rendering are delegated to `northstar-write` (see `##
 
 ## Orchestrator IO scripts
 
-Two shell scripts (`scripts/northstar-read.{ps1,sh}` and `scripts/northstar-write.{ps1,sh}`) handle the mechanical I/O operations that would otherwise require the orchestrator to manage file handles, atomic writes, and template rendering inline. The install scripts copy both pairs into `commands/scripts/`.
+Two shell scripts (`northstar-read.{ps1,sh}` and `northstar-write.{ps1,sh}`) handle the mechanical I/O operations that would otherwise require the orchestrator to manage file handles, atomic writes, and template rendering inline. The install scripts copy both pairs into `commands/scripts/`.
+
+At runtime the orchestrator resolves the scripts directory using a three-step lookup before the first invocation: (1) `./.claude/commands/scripts/` (project install); (2) `$CLAUDE_CONFIG_DIR/commands/scripts/` if `CLAUDE_CONFIG_DIR` is set, otherwise `~/.claude/commands/scripts/` (global/user install); (3) `./scripts/` as a dev-repo fallback for running `/ns` directly inside the Northstar source repo. The authoritative definition of this lookup is in the `## Script-path resolution` section of `commands/ns.md`.
 
 **`northstar-read`** reads a part directory (`.northstar/parts/<id>/`) and returns a structured JSON summary of the artifacts present — brief.md, execution.md, review.md, audit.md, blocker.md. The orchestrator calls it after subagent dispatch to extract verdict fields and file lists without reading full artifact bodies into its own context.
 
