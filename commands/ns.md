@@ -46,7 +46,7 @@ Separate single-shot commands handle the rest: `/ns-status` (print the dashboard
 3b. Classify each Part as trivial. For each Part, evaluate all five rules against the Part's extracted body text: (a) word count of body < 200, (b) `depends_on` list length ≤ 1, (c) body contains no `Programmatic:` line inside a `## Verification` section, (d) first word of Part title is one of `Update|Rename|Move|Add|Remove|Fix|Bump|Change` (case-insensitive), (e) count of distinct file-path tokens (strings containing `/` or ending with a file-extension pattern like `.md`, `.js`, `.ts`, `.json`, `.sh`, `.ps1`, etc.) in the body is ≤ 2. Set `trivial: true` if all five hold, else `trivial: false`. Store the field on the Part entry. For each Part where `trivial == true`, narrate: "🧭 Orchestrator — Part N classified as trivial — fast path will apply."
 4. Set `current_batch = [level-0 part ids]`, `run_phase = "batch_scouting"`, `current_part_id = null`, `batch_scouted_levels = []`.
 5. Create `.northstar/parts/<id>/` for every Part.
-6. Pipe the initial next-state JSON to `northstar-write .northstar/state.json` (platform-detected: `pwsh scripts/northstar-write.ps1 .northstar/state.json` on Windows; `bash scripts/northstar-write.sh .northstar/state.json` on POSIX) with the full initial state JSON on stdin. On non-zero exit: write `blocker.md` (`from: orchestrator`) and end turn. Emit the run header card as direct multi-line output to the user (before the narration sentence):
+6. Pipe the initial next-state JSON to `northstar-write .northstar/state.json` (platform-detected: `pwsh $scripts_dir/northstar-write.ps1 .northstar/state.json` on Windows; `bash $scripts_dir/northstar-write.sh .northstar/state.json` on POSIX) with the full initial state JSON on stdin. On non-zero exit: write `blocker.md` (`from: orchestrator`) and end turn. Emit the run header card as direct multi-line output to the user (before the narration sentence):
 
    ```
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -143,9 +143,28 @@ After every dispatch: (1) check for unresolved `blocker.md` — route to `needs_
 
 **Adopt rule:** when ticking into Part M's `scouting` handler — if `state.speculative.part_id == "part-<M>"` AND `brief.md` exists: skip dispatch, go directly to output verification, clear `state.speculative`. Narrate: "🧭 Orchestrator — adopted speculative brief for Part M — skipping re-scout."
 
+## Script-path resolution
+
+Before invoking any helper script (`northstar-write`, `northstar-read`, `northstar-tick`), resolve the scripts directory once per session using the following three-step lookup. Store the result as the resolved scripts directory (referred to below as `$scripts_dir`) and use it at every subsequent script call. Do not re-resolve on each call — resolve once at the start of the session.
+
+Resolution order:
+
+1. **Project install:** check whether `./.claude/commands/scripts/` exists in the current working directory. If it does, use it as `$scripts_dir`.
+2. **User install:** if step 1 did not match, check `$CLAUDE_CONFIG_DIR/commands/scripts/` — but only if the environment variable `CLAUDE_CONFIG_DIR` is set and non-empty. If `CLAUDE_CONFIG_DIR` is not set, check `~/.claude/commands/scripts/` instead. If the resolved path exists, use it as `$scripts_dir`.
+3. **Dev-repo fallback:** if neither step 1 nor step 2 matched, use `./scripts/` as `$scripts_dir`. This path is the canonical developer-repository location and ensures that running `/ns` directly inside the Northstar source repo (e.g., against `fixtures/`) works without an install step.
+
+If none of the three paths exist, write `blocker.md` (`from: orchestrator`) with the message "Helper scripts not found — install Northstar or run from the dev repo." and end the turn.
+
+Once resolved, invoke scripts as:
+
+- Windows: `pwsh $scripts_dir/northstar-<name>.ps1 <args>`
+- POSIX: `bash $scripts_dir/northstar-<name>.sh <args>`
+
+`$scripts_dir` here denotes the actual resolved path string, not a shell variable. The orchestrator substitutes the concrete path at each invocation site.
+
 ## Tick loop
 
-On every advance-state invocation: detect platform — Windows: `pwsh scripts/northstar-tick.ps1 .northstar/state.json`; POSIX: `bash scripts/northstar-tick.sh .northstar/state.json`. Capture stdout as `directive` JSON. On non-zero exit or parse failure, write `blocker.md` (`from: orchestrator`) and pause. Parse `directive.action` and route to the per-action handler below. The tick scripts are read-only — the orchestrator always writes `state.json` after acting. **State writes: always via `northstar-write`; artifact reads: always via `northstar-read`. Never write `state.json` directly.**
+On every advance-state invocation: detect platform — Windows: `pwsh $scripts_dir/northstar-tick.ps1 .northstar/state.json`; POSIX: `bash $scripts_dir/northstar-tick.sh .northstar/state.json`. Capture stdout as `directive` JSON. On non-zero exit or parse failure, write `blocker.md` (`from: orchestrator`) and pause. Parse `directive.action` and route to the per-action handler below. The tick scripts are read-only — the orchestrator always writes `state.json` after acting. **State writes: always via `northstar-write`; artifact reads: always via `northstar-read`. Never write `state.json` directly.**
 
 ### `start_batch_scouting`
 Derive the current level integer from the `level` field of any Part in `current_batch`. Append that integer to `batch_scouted_levels`, pipe next-state JSON to `northstar-write`. Emit all scout `Agent(...)` calls for `current_batch` (integer-sorted) in one assistant turn. Narrate: "🧭 Orchestrator — dispatching M scouts in parallel for level L: Part a, Part b, …"
@@ -334,16 +353,20 @@ Delegated to `northstar-write` script. Call `northstar-write .northstar/state.js
 
 ### northstar-read
 
-- Windows: `pwsh scripts/northstar-read.ps1 <part-dir>`
-- POSIX: `bash scripts/northstar-read.sh <part-dir>`
+See `## Script-path resolution` for how `$scripts_dir` is determined.
+
+- Windows: `pwsh $scripts_dir/northstar-read.ps1 <part-dir>`
+- POSIX: `bash $scripts_dir/northstar-read.sh <part-dir>`
 - Output: single-line JSON on stdout — `{"part_dir":"...","review":{"verdict":"clean"|"concerns"|"blockers"|null},"audit":{"verdict":"clean"|"concerns"|"blockers"|null},"execution":{"files_changed_count":<int>|null},"blocker":{"present":true|false,"from":<str>|null,"severity":<str>|null,"options":<array>|null}}`
 - Exit 0 even if artifact files are absent (fields will be null). Exit 1 if part-dir is missing.
 - On non-zero exit: treat as a blocker (write `blocker.md` from orchestrator) and pause.
 
 ### northstar-write
 
-- Windows: pipe full next-state JSON to stdin of `pwsh scripts/northstar-write.ps1 .northstar/state.json`
-- POSIX: pipe full next-state JSON to stdin of `bash scripts/northstar-write.sh .northstar/state.json`
+See `## Script-path resolution` for how `$scripts_dir` is determined.
+
+- Windows: pipe full next-state JSON to stdin of `pwsh $scripts_dir/northstar-write.ps1 .northstar/state.json`
+- POSIX: pipe full next-state JSON to stdin of `bash $scripts_dir/northstar-write.sh .northstar/state.json`
 - The orchestrator must construct the complete next-state JSON object in-context (all fields: `updated_at`, `run_phase`, `current_part_id`, per-Part `status`, etc.) and pipe that entire JSON to stdin.
 - Exit 0 on success. Exit 1 on bad JSON/missing arg. Exit 2 on write failure.
 - On non-zero exit: treat as a blocker (write `blocker.md` from orchestrator) and pause.
