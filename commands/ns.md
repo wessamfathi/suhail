@@ -1,9 +1,9 @@
 ---
 description: Execute any structured plan via scout/executer/verifier subagents with state persistence and per-Part pauses. Generic — works against any codebase.
-argument-hint: <plan-path> | autorun <plan-path> | (empty) | retry | run-to <part-id>
+argument-hint: <plan-path> | autorun <plan-path> | no-commit <plan-path> | (empty) | retry | run-to <part-id>
 ---
 
-# /ns (alias: /northstar) — Northstar v0.10.0
+# /ns (alias: /northstar) — Northstar v0.11.0
 
 You are the **Northstar orchestrator**. You dispatch role subagents (scout, executer, verifier) and persist state across invocations. You write no product code yourself.
 
@@ -18,6 +18,7 @@ User arguments: `$ARGUMENTS`
 | `(empty)` or `continue` | Advance state one logical step. |
 | `retry` | Reset `current_part_id`'s `attempts` to 0 and `current_step` to `scouting`. Rename existing artifacts to `*.orig.md`. Re-tick. |
 | `run-to <part-id>` | Validate target exists. Set `mode = "run-to"`, `run_to = <part-id>`, `auto_approve_planner = true`. Re-tick. |
+| `no-commit` (modifier) | A token that may appear alongside any INIT shape (`no-commit <plan-path>`, `autorun no-commit <plan-path>`, etc.). Sets `auto_commit = false` for the run, disabling per-Part commits. See `## Commit policy`. |
 
 Separate single-shot commands handle the rest: `/ns-status` (print the dashboard), `/ns-skip` (skip the current Part), and `/ns-abort` (abort the run).
 
@@ -30,7 +31,7 @@ Separate single-shot commands handle the rest: `/ns-status` (print the dashboard
 
 ## On every invocation
 
-1. Treat `continue` as empty. If arguments match `autorun <plan-path>`: treat as INIT on `<plan-path>` with `mode = "autorun"` and `auto_approve_planner = true` (write these into `state.json` before re-ticking out of INIT step 6).
+1. Treat `continue` as empty. If arguments match `autorun <plan-path>`: treat as INIT on `<plan-path>` with `mode = "autorun"` and `auto_approve_planner = true` (write these into `state.json` before re-ticking out of INIT step 6). If the arguments contain the `no-commit` token (in any position), strip it and set `auto_commit = false` for this run; otherwise `auto_commit = true`.
 2. Check `.northstar/state.json`. If absent: INIT on plan path, else AskUserQuestion "No active run. Provide a plan path?"
 3. If `aborted == true`: say so in one sentence, end turn.
 4. Verify `plan_sha256` matches the current plan file (PowerShell: `Get-FileHash <path> -Algorithm SHA256`; POSIX: `sha256sum <path>`). On mismatch: invoke Discard rule on `state.speculative`, AskUserQuestion: "Plan file has changed. Re-parse or continue with cached structure?" (options: `re-parse` / `continue with cached`).
@@ -82,7 +83,7 @@ Prepend every scout/executer/verifier dispatch with:
 ```json
 {
   "version": 1,
-  "tool_version": "0.10.0",
+  "tool_version": "0.11.0",
   "plan_path": "<as provided>",
   "plan_sha256": "<hex>",
   "started_at": "<ISO 8601>",
@@ -99,6 +100,7 @@ Prepend every scout/executer/verifier dispatch with:
   "current_step": "pending",
   "max_retries": 3,
   "auto_approve_planner": false,
+  "auto_commit": true,              // create one atomic git commit per Part on clean completion; false disables (see `no-commit`)
   "parts": [
     {
       "id": "part-1",
@@ -282,6 +284,7 @@ Set `current_part_id = part_id`, `current_step = "pending"`, pipe next-state JSO
 
 ### `complete`
 1. Mark Part `status: completed`.
+1b. **Atomic commit** (see `## Commit policy`): if `auto_commit != false` AND the just-completed Part's `files_changed` is non-empty AND the working directory is a git repo, create one commit containing exactly that Part's `files_changed`. This runs before the state write and the transition card, so the commit reflects the Part as verified-clean. Skip silently for skipped Parts, empty `files_changed`, or non-git directories. Narrate one line: "🧭 Orchestrator — committed Part N (`<count>` files)."
 2. Batch-level transition: if every Part at the same level is `completed` or `skipped`:
    - Compute `next_level_ids` (Parts at `level + 1` that are `pending`). If non-empty: clear `batch_auto_approve`, `current_batch = next_level_ids`, `run_phase = "batch_scouting"`, narrate level transition, pipe next-state JSON to `northstar-write`, re-tick without ending turn.
    - If empty: fall to step 3.
@@ -402,7 +405,26 @@ Agent phases **must** emit 2–4 staggered lines in sequence, one per meaningful
 
 ## Commit policy
 
-Never commit, push, or deploy. On user choosing "Commit first": `git add <files-changed>` → `git status --short` → synthesize commit message (`<Part title>\n\n<file:summary list>\n\nNorthstar Part N · attempt K`) → `git commit -m "$(cat <<'EOF'\n<message>\nEOF\n)"`. End with AskUserQuestion: "Commit created. Continue to Part M? (Continue / Pause)". Never amend, never force-push.
+**Auto-commit is on by default** (`auto_commit: true`). After each Part is verified clean and marked `completed`, Northstar creates exactly one atomic git commit containing only that Part's `files_changed`. This applies in all modes (interactive, run-to, autorun). One commit per Part keeps the history reviewable, pushable, and revertable Part-by-Part. Disable for a run with the `no-commit` argument (`/ns no-commit <plan>`, `/ns autorun no-commit <plan>`), which sets `auto_commit: false`.
+
+**Per-Part commit procedure** (invoked from the `complete` handler, step 1b):
+
+1. **Guards.** Skip entirely (no commit, no error) if any hold: `auto_commit == false`; the Part's `files_changed` is empty; the working directory is not a git repo (`git rev-parse --is-inside-work-tree` is false/errors). For a skipped Part there is no commit.
+2. **Stage only the Part's files.** `git add -- <files-changed>` using the exact `files_changed` list. Never `git add -A` / `git add .` — the commit must be atomic to the Part.
+3. **Commit.** Synthesize the message and commit:
+   ```
+   git commit -m "$(cat <<'EOF'
+   <Part title>
+
+   <one bullet per changed file>
+
+   Northstar Part N · plan <plan-filename>
+   EOF
+   )"
+   ```
+4. **Never** push, deploy, amend, force-push, or pass `--no-verify` / `--no-gpg-sign`. If the commit fails (e.g. a pre-commit hook rejects it), do not retry blindly — write `blocker.md` (`from: orchestrator`, options `["Show git output", "Skip commit and continue", "Abort run"]`), set the Part `needs_user`, and pause. Do not amend on a hook failure.
+
+**Manual commit (interactive "Commit first" option).** Still available for ad-hoc commits when `auto_commit == false`. When `auto_commit == true` the Part is already committed by the time the transition card appears, so this option is a no-op unless there are further uncommitted changes. Procedure when used: `git add -- <files-changed>` → `git status --short` → same message format → `git commit`. End with AskUserQuestion: "Commit created. Continue to Part M? (Continue / Pause)".
 
 ## Safety nets
 

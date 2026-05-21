@@ -2,6 +2,16 @@
 
 All notable changes to Northstar are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] — 2026-05-21
+
+### Added
+- **Atomic per-Part git commits**, on by default (`auto_commit: true` in `state.json`). After a Part is verified clean and marked `completed`, the orchestrator stages only that Part's `files_changed` and creates one commit (`commands/ns.md` `complete` handler step 1b + rewritten `## Commit policy`). Applies in all modes. Skipped Parts, empty `files_changed`, and non-git working directories are never committed. The orchestrator still never pushes, deploys, amends, or force-pushes; a failed commit (e.g. rejected by a pre-commit hook) raises an orchestrator blocker rather than retrying or amending.
+- `no-commit` argument modifier for `/ns` (composes with any INIT shape, e.g. `/ns no-commit <plan>`, `/ns autorun no-commit <plan>`): sets `auto_commit: false` to disable per-Part commits for the run.
+
+### Changed
+- The "Commit policy" section of `commands/ns.md` rewritten from "never commit" to default-on atomic commits; the interactive "Commit first" option is retained for on-demand commits when auto-commit is off.
+- `state.tool_version` bumped to `0.11.0`.
+
 ## [0.10.0] — 2026-05-20
 
 ### Added

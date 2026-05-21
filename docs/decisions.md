@@ -6,6 +6,16 @@ Append new entries at the top. Each entry has a date, a one-line headline, what 
 
 ---
 
+## 2026-05-21 — Orchestrator auto-commits each Part atomically (on by default)
+
+**Decided:** after a Part is verified clean and marked `completed`, the orchestrator creates exactly one git commit containing only that Part's `files_changed`. On by default (`auto_commit: true`); opt out per run with the `no-commit` argument. Applies in all modes. The orchestrator never pushes, deploys, amends, or force-pushes, and a failed commit raises an orchestrator blocker instead of retrying/amending. The **executer** still never commits — committing is solely the orchestrator's job, at the verified-clean boundary.
+
+**Why:** an unattended (autorun) run previously left all Parts as one undifferentiated working-tree diff, making review, partial push, and selective rollback hard. One commit per verified Part maps the git history onto the plan's structure: each commit is reviewable in isolation, pushable independently, and revertable without disturbing other Parts. Tying the commit to the verified-clean transition (not to execution) means only Parts that passed review/audit enter history.
+
+**Considered alternatives:** committing after execution (rejected — would record Parts that later fail verification); a single squashed commit at run end (rejected — loses the per-Part atomicity that makes review and rollback easy); keeping commits fully manual (rejected — the user explicitly wanted commits created "as it works"). This reverses the earlier "never commit" stance in the orchestrator's commit policy; the v1 "never phone home / no telemetry" commitment is unaffected.
+
+---
+
 ## 2026-05-20 — Orchestrator IO (state write + artifact read) moved to shell scripts
 
 **Decided:** `northstar-write.{ps1,sh}` handles atomic `state.json` writes and STATUS.md rendering; `northstar-read.{ps1,sh}` handles artifact parsing (reading part-dir markdown files and returning a structured JSON summary). The orchestrator invokes these as external scripts via stdin/stdout, not as agent dispatches.
