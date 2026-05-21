@@ -152,9 +152,9 @@ This guards against the common mistake of editing the plan mid-run and assuming 
 The orchestrator has `Bash` access for three things:
 1. SHA-256 the plan file.
 2. Compute diffs (`git diff`) to pass to the verifier.
-3. Run `git add` and `git commit` only when the user explicitly chose "Commit first" at a Part-completion prompt.
+3. Run `git add` and `git commit` to create one atomic commit per Part when a Part is verified clean (on by default; disabled per run with the `no-commit` argument), and on demand when the user chooses "Commit first" at a Part-completion prompt. Only the Part's own changed files are staged.
 
-It does NOT use Bash for arbitrary code execution. It does NOT deploy. It does NOT push.
+It does NOT use Bash for arbitrary code execution. It does NOT deploy. It does NOT push, amend, or force-push.
 
 ## Boundary with the user
 

@@ -151,8 +151,8 @@ Add `.northstar/` to your target repo's `.gitignore`. The install script will do
 
 ## Safety
 
-- The **executer never commits**. It also never deploys. Both are flagged as "Manual follow-ups required" in `execution.md` for you to run.
-- After each Part completes, the user is given an explicit "Commit first" option. Only a user choice authorizes a commit.
+- The **executer never commits**. It also never deploys. Deploys are flagged as "Manual follow-ups required" in `execution.md` for you to run.
+- **Atomic per-Part commits (on by default).** After a Part is verified clean, the orchestrator creates one git commit containing only that Part's changed files, so history is reviewable, pushable, and revertable Part-by-Part. Skipped Parts and non-git directories are never committed. The orchestrator never pushes, deploys, amends, or force-pushes. Disable for a run with `no-commit` (e.g. `/ns no-commit <plan>` or `/ns autorun no-commit <plan>`); with auto-commit off, the interactive "Commit first" option still lets you commit on demand.
 - The **verifier** runs two passes: a review pass (correctness, regressions, convention drift) and an audit pass (security, injection, secrets, input validation). Project-specific risks travel via the scout's `Domain risks worth flagging to auditor` section in `brief.md` — domain knowledge is never hardcoded into the verifier.
 
 ## Troubleshooting
@@ -181,4 +181,4 @@ MIT. See [`LICENSE`](LICENSE).
 
 ## Status
 
-Northstar v0.10.0. Telemetry: none. Issues and PRs welcome.
+Northstar v0.11.0. Telemetry: none. Issues and PRs welcome.
