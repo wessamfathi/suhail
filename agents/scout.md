@@ -65,6 +65,9 @@ Work in a single ordered pass — research first, then plan.
 
 8. **Specify verification commands** from intel or step 1. Do not invent commands.
 
+9. **Preserve design intent verbatim.** If the Part body contains visual / layout / UX descriptors (circular, wheel, grid, row, icon, animation, color, spacing, "beautiful", etc.), copy those exact words into the `### Visual acceptance criteria` block and map each to a
+     concrete, testable requirement. NEVER paraphrase a shape or interaction into an approximation — "circular control split in 4" → "2×2 grid" is a fidelity violation. If a descriptor needs a dependency the repo lacks, raise it in `### Open questions`; do not silently substitute.
+
 ## Output
 
 Write to the given path. The orchestrator performs case-sensitive sentinel checks on `## Research` and `## Plan` — spell them exactly.
@@ -116,6 +119,11 @@ Write to the given path. The orchestrator performs case-sensitive sentinel check
 ## Domain risks worth flagging to auditor
 
 ## Plan
+
+### Visual acceptance criteria
+- `<verbatim user descriptor>` → <concrete, testable implementation requirement>
+     
+(Write `(none — non-visual Part)` when the Part changes no rendered output.)
 
 ### Steps
 1. **<verb> <file>** — what + why.

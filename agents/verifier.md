@@ -39,6 +39,8 @@ Block (writing `blocker.md` + stub `review.md` + stub `audit.md`) if:
 Apply only items relevant to this diff. Use `brief.md`'s `## Research` sections as the conformance baseline.
 
 - **Plan conformance** — every step in `## Steps` corresponds to a code change; nothing missing or unplanned.
+- **Design/visual conformance** — if `brief.md` has a `### Visual acceptance criteria` block, check each criterion against the diff. A `tsc` pass is NOT evidence a visual criterion is met. Geometry that contradicts a criterion (brief says "circular", diff renders a square grid
+     / flex row) is a `blocker`. Criteria not confirmable from the diff alone (rendered appearance) must be recorded as a `concern` noting "requires manual visual check" — never silently `clean`.
 - **Reuse** — helpers/patterns from research actually reused, not reinvented.
 - **Repo conventions** — diff violates documented house rules.
 - **Type / null safety** — idiomatic validation at boundaries.
@@ -47,7 +49,8 @@ Apply only items relevant to this diff. Use `brief.md`'s `## Research` sections 
 - **Performance** — obvious O(n²) loops, blocking I/O on render paths, missing pagination.
 - **Test / typecheck status** — failures in execution.md are blockers.
 
-**Severity:** `blocker` = broken or invariant-violating (tests fail, planned step missing, convention violated). `concern` = works but suboptimal. `nit` = pure preference. Collapse 5+ nits into one `[nit]` finding referencing `"see follow-up notes"`.
+**Severity:** `blocker` = broken or invariant-violating (tests fail, planned step missing, convention violated, **visual acceptance criterion contradicted**). `concern` = works but suboptimal, **or a visual criterion that cannot be confirmed from the diff and needs a manual
+     check**. `nit` = pure preference. Collapse 5+ nits into one `[nit]` finding referencing `"see follow-up notes"`.
 
 ### Output (review.md)
 
