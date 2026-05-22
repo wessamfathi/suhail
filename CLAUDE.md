@@ -10,7 +10,7 @@ Northstar is a generic plan-orchestration pipeline for Claude Code. The repo shi
 
 ```
 agents/                # Role subagents (scout, executer, verifier).
-commands/              # Slash commands (northstar/ns, ns-init, ns-discover, ns-next). The orchestrator state machine lives in commands/ns.md.
+commands/              # Slash commands (ns, ns-init, ns-discover, ns-next). The orchestrator state machine lives in commands/ns.md.
 fixtures/              # Plan files used to exercise Northstar end-to-end.
 scripts/               # POSIX + PowerShell installers.
 docs/                  # plan-format.md, architecture.md, extending.md, decisions.md.
@@ -22,7 +22,6 @@ LICENSE                # MIT.
 ## Key architectural facts (do not forget)
 
 - **The orchestrator is a slash command, not a subagent.** It lives in `commands/ns.md`. Earlier (v0.1.0) it was at `agents/northstar.md`; that did not work because Claude Code subagents cannot spawn nested subagents. The slash command body is injected into the top-level session, which can use the Agent tool to dispatch role subagents. Do not move it back into `agents/`. See `docs/architecture.md` § "Why the orchestrator lives in the slash command".
-- **`commands/northstar.md` is a thin pointer** that reads `commands/ns.md` at runtime. Single source of truth for the orchestrator prompt. Do not duplicate the orchestrator body across both files.
 - **Subagent IPC is files-only.** The orchestrator passes paths in prompts; subagents read inputs from disk and write outputs to disk. The orchestrator never echoes subagent bodies into the top-level conversation. Preserve this contract — it's why context stays bounded.
 - **Subagents must not coordinate directly.** Scout → executer is one-way. The verifier runs independently after the executer.
 - **Domain knowledge flows through one channel.** The verifier's audit pass is intentionally generic. Project-specific risks reach it only through `brief.md`'s `Domain risks worth flagging to auditor` section. Do not bake domain rules into the verifier's prompt.
@@ -38,7 +37,7 @@ LICENSE                # MIT.
 
 `tool_version` appears in two places inside `commands/ns.md` plus two other files — keep all in sync on every release:
 
-1. `commands/ns.md` — heading (`# /ns (alias: /northstar) — Northstar vX.Y.Z`) and the `tool_version` field inside the state schema block. These are the only two sync points in `commands/ns.md`. The write scripts (`scripts/northstar-write.{ps1,sh}`) render `tool_version` from `state.tool_version` at runtime and do not hardcode a version string — no separate edit needed there.
+1. `commands/ns.md` — heading (`# /ns — Northstar vX.Y.Z`) and the `tool_version` field inside the state schema block. These are the only two sync points in `commands/ns.md`. The write scripts (`scripts/northstar-write.{ps1,sh}`) render `tool_version` from `state.tool_version` at runtime and do not hardcode a version string — no separate edit needed there.
 2. `README.md` — the footer line "Northstar vX.Y.Z. Telemetry: none."
 3. `CHANGELOG.md` — new section header `## [X.Y.Z] — YYYY-MM-DD`.
 

@@ -93,7 +93,7 @@ The script interface is documented in the `## Script contracts` section of `comm
 
 The orchestrator's logic is in `commands/ns.md` (the slash command body) rather than `agents/northstar.md` (a subagent). The reason is a Claude Code platform constraint: **subagents invoked via the Agent tool cannot themselves spawn further subagents.** Only the top-level session can dispatch subagents. If the orchestrator were a subagent, it would have no way to call the scout / executer / verifier that it coordinates.
 
-By putting the orchestrator into the slash command, invoking `/ns` or `/northstar` makes the top-level session take on the orchestrator role for the turn. The top-level session does have access to the Agent tool and can dispatch the role subagents (scout, executer, verifier), which run in isolated contexts. The pipeline tree is exactly two levels deep: top-level session → role subagent.
+By putting the orchestrator into the slash command, invoking `/ns` makes the top-level session take on the orchestrator role for the turn. The top-level session does have access to the Agent tool and can dispatch the role subagents (scout, executer, verifier), which run in isolated contexts. The pipeline tree is exactly two levels deep: top-level session → role subagent.
 
 Cost: the orchestrator's instructions (a few hundred lines) live in the top-level session's context for each turn — see "Context window impact" below.
 
@@ -105,7 +105,7 @@ Cost: the orchestrator's instructions (a few hundred lines) live in the top-leve
 - The indexer is a one-shot subagent. It scans the repo and writes four markdown files under `.northstar/intel/`. Putting the scan in a subagent keeps the slash command's context bounded — the top-level session never sees the raw manifest dumps, lint configs, or directory listings that the indexer pages through. Same files-as-IPC contract as every other role.
 - `/ns-init` enforces output verification the same way `/ns` does: each of the four intel files must exist, be non-empty, and contain its required H2 sentinel section. On failure it writes a `from: orchestrator` blocker and pauses for the user.
 
-The precursor gate is enforced by `/ns`, `/northstar`, and `/ns-discover`. The gate runs at INIT only for `/ns` (a mid-run intel deletion does not break an in-flight run) and at every invocation for `/ns-discover` (which produces a one-shot deliverable).
+The precursor gate is enforced by `/ns` and `/ns-discover`. The gate runs at INIT only for `/ns` (a mid-run intel deletion does not break an in-flight run) and at every invocation for `/ns-discover` (which produces a one-shot deliverable).
 
 ## Why the discoverer is also a slash command
 

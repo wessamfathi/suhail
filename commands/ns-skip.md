@@ -32,7 +32,7 @@ After the guards pass:
 Check these paths in order:
 
 1. The same directory as this command file (sibling): project install `<repo>/.claude/commands/ns.md`; user install `~/.claude/commands/ns.md`.
-2. If neither contains the file, fall back to `northstar.md` in the same locations. If neither contains `northstar.md` either, end with: "Cannot locate `ns.md` — reinstall Northstar."
+2. If neither path is found, end with: "Cannot locate `ns.md` — reinstall Northstar."
 
 Do not duplicate or summarize the orchestrator logic here. The canonical state machine lives in `ns.md`.
 
