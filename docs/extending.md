@@ -2,7 +2,7 @@
 
 Northstar ships with three role subagents (scout, executer, verifier) plus a slash-command orchestrator. Adding new roles is a matter of writing one markdown file and (usually) editing the orchestrator's state machine to dispatch it at the right phase.
 
-The orchestrator itself lives in `commands/ns.md` rather than as a subagent because Claude Code does not allow subagents to spawn further subagents. (`commands/northstar.md` is a thin pointer to `commands/ns.md`; `ns.md` is the single source of truth.) The top-level session plays the orchestrator role per turn. See `docs/architecture.md` for the full rationale.
+The orchestrator itself lives in `commands/ns.md` rather than as a subagent because Claude Code does not allow subagents to spawn further subagents. The top-level session plays the orchestrator role per turn. See `docs/architecture.md` for the full rationale.
 
 ## The contract a subagent must satisfy
 
@@ -61,7 +61,7 @@ STATUS.md generation is now handled by `northstar-write.{ps1,sh}` (installed to 
 
 ### 5. Bump the version
 
-Bump `tool_version` in `commands/ns.md` in two locations: the heading (`# /ns (alias: /northstar) — Northstar vX.Y.Z`) and the `tool_version` field inside the state schema block. The write scripts (`northstar-write.{ps1,sh}`, installed to `commands/scripts/` and resolved via the project-then-global lookup defined in `## Script-path resolution` in `commands/ns.md`) read `tool_version` from the state JSON at runtime and require no separate version edit. Add a CHANGELOG entry.
+Bump `tool_version` in `commands/ns.md` in two locations: the heading (`# /ns — Northstar vX.Y.Z`) and the `tool_version` field inside the state schema block. The write scripts (`northstar-write.{ps1,sh}`, installed to `commands/scripts/` and resolved via the project-then-global lookup defined in `## Script-path resolution` in `commands/ns.md`) read `tool_version` from the state JSON at runtime and require no separate version edit. Add a CHANGELOG entry.
 
 ## Skipping a role per-Part
 

@@ -58,12 +58,6 @@ Don't have a plan file yet? Let Northstar interview you and draft one:
 After install, in any repo:
 
 ```
-/northstar fixtures/test_plan.md
-```
-
-…or, using the alias:
-
-```
 /ns fixtures/test_plan.md
 ```
 
@@ -95,8 +89,6 @@ Expected result: a `.northstar-smoketest.txt` file containing `northstar smoke o
 | `/ns-discover [output-path]` | Interview the user and write a Northstar-format plan file. Delegates Phase 0 grounding to `discover-scout` (haiku, read-only) and Phase 5 plan-writing to `discover-planner` (sonnet). Independent of any active run; requires intel. |
 | `/ns-next` | Auto-advance the current Northstar run by exactly one logical step. Zero-argument shortcut for "next" — performs no INIT, does not loop in `run-to` mode, and auto-approves the scout only at `awaiting_plan_approval`. Requires an active run. |
 | `/ns-auto [plan-path]` | Auto-detect the most recent plan and run it in autorun mode. |
-
-`/northstar` is the full form; both spellings accept the same arguments.
 
 ## How a Part is executed
 
