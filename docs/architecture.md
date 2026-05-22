@@ -6,32 +6,32 @@ Northstar is a thin coordinator over three specialized roles. This document cove
 
 | Role | Tools | Model | Output |
 |---|---|---|---|
-| **indexer** | Read, Write, Glob, Grep, Bash | sonnet | `.northstar/intel/{stack,layout,conventions,modules}.md` — project-wide baseline cached once per project by `/ns-init` |
-| **scout** | Read, Write, Glob, Grep | sonnet | `brief.md` — discovered stack conventions, files to touch, reusable helpers, gotchas, domain risks, and ordered step list |
-| **executer** | Read, Edit, Write, Glob, Grep, Bash | sonnet | `execution.md` — file changes, command results, manual follow-ups |
-| **verifier** | Read, Write, Glob, Grep, Bash | sonnet | `review.md` + `audit.md` — two-pass verdict and findings (review pass: correctness, regressions, convention drift; audit pass: security and compliance) |
-| **discover-scout** | Read, Glob, Grep | haiku (`claude-haiku-4-5-20251001`) | Structured context summary returned as response (no disk write) — Phase 0 grounding for `/ns-discover`. Dispatched exclusively by `/ns-discover`, not by the orchestrator. |
-| **discover-planner** | Read, Write | sonnet | `.northstar/plans/<slug>.md` — Northstar-format plan file. Phase 5 plan-writing for `/ns-discover`. Dispatched exclusively by `/ns-discover`, not by the orchestrator. |
+| **ns-indexer** | Read, Write, Glob, Grep, Bash | sonnet | `.northstar/intel/{stack,layout,conventions,modules}.md` — project-wide baseline cached once per project by `/ns-init` |
+| **ns-scout** | Read, Write, Glob, Grep | sonnet | `brief.md` — discovered stack conventions, files to touch, reusable helpers, gotchas, domain risks, and ordered step list |
+| **ns-executer** | Read, Edit, Write, Glob, Grep, Bash | sonnet | `execution.md` — file changes, command results, manual follow-ups |
+| **ns-verifier** | Read, Write, Glob, Grep, Bash | sonnet | `review.md` + `audit.md` — two-pass verdict and findings (review pass: correctness, regressions, convention drift; audit pass: security and compliance) |
+| **ns-discover-scout** | Read, Glob, Grep | haiku (`claude-haiku-4-5-20251001`) | Structured context summary returned as response (no disk write) — Phase 0 grounding for `/ns-discover`. Dispatched exclusively by `/ns-discover`, not by the orchestrator. |
+| **ns-discover-planner** | Read, Write | sonnet | `.northstar/plans/<slug>.md` — Northstar-format plan file. Phase 5 plan-writing for `/ns-discover`. Dispatched exclusively by `/ns-discover`, not by the orchestrator. |
 
-Plus the **orchestrator** (`northstar`) itself: opus, has access to Agent + AskUserQuestion + state I/O, dispatches the roles in sequence. The **indexer** is dispatched only by `/ns-init`, not by the orchestrator — it runs once per project as a precursor.
+Plus the **orchestrator** (`/ns`) itself: opus, has access to Agent + AskUserQuestion + state I/O, dispatches the roles in sequence. The **ns-indexer** is dispatched only by `/ns-init`, not by the orchestrator — it runs once per project as a precursor.
 
 ## Pipeline shape
 
 ```
 (once per project)
-  /ns-init → indexer → .northstar/intel/{stack,layout,conventions,modules}.md
+  /ns-init → ns-indexer → .northstar/intel/{stack,layout,conventions,modules}.md
 
 (per Part, inside /ns)
-  scout → (user approval) → executer → verifier → completed → (user approval) → next Part
-                              ▲           │
-                              │           │ findings include [blocker]
-                              └───────────┘
-                              up to max_retries (default 3)
+  ns-scout → (user approval) → ns-executer → ns-verifier → completed → (user approval) → next Part
+                                   ▲               │
+                                   │               │ findings include [blocker]
+                                   └───────────────┘
+                                   up to max_retries (default 3)
 ```
 
-The intel cache is the only project-wide artifact. Per-Part artifacts live under `.northstar/parts/<id>/`. The scout reads the intel cache as step 0 of its process so it does not re-derive stack, layout, conventions, or module structure on every Part.
+The intel cache is the only project-wide artifact. Per-Part artifacts live under `.northstar/parts/<id>/`. The ns-scout reads the intel cache as step 0 of its process so it does not re-derive stack, layout, conventions, or module structure on every Part.
 
-The verifier runs two sequential passes on every Part: a review pass (correctness, regressions, convention drift) producing `review.md`, then an audit pass (security and compliance) producing `audit.md`. If either pass finds `blocker`-severity issues, the verifier triggers a re-dispatch of the executer. This serializes feedback so the executer addresses correctness before security.
+The ns-verifier runs two sequential passes on every Part: a review pass (correctness, regressions, convention drift) producing `review.md`, then an audit pass (security and compliance) producing `audit.md`. If either pass finds `blocker`-severity issues, the ns-verifier triggers a re-dispatch of the ns-executer. This serializes feedback so the ns-executer addresses correctness before security.
 
 ## Why files-as-IPC
 
@@ -50,24 +50,24 @@ The orchestrator advances state by exactly one logical step per invocation (one 
 
 This is the system's most important property. The user requested it explicitly: every Part is a checkpoint. In interactive mode there is no way to advance past a Part without the user authorizing.
 
-`run-to <part-id>` is the explicit escape hatch for unattended runs. It bypasses per-Part pauses AND scout-approval, walks Parts until it hits the named target, and then reverts to interactive mode. A 20-Part safety cap forces an interactive checkpoint even mid-target, so runs can't go arbitrarily long unattended.
+`run-to <part-id>` is the explicit escape hatch for unattended runs. It bypasses per-Part pauses AND ns-scout-approval, walks Parts until it hits the named target, and then reverts to interactive mode. A 20-Part safety cap forces an interactive checkpoint even mid-target, so runs can't go arbitrarily long unattended.
 
-## Why the verifier uses two passes
+## Why the ns-verifier uses two passes
 
-The verifier runs a review pass followed by an audit pass within a single agent invocation. The passes are sequential — the audit pass runs only after the review pass is clean — so the executer addresses correctness before security concerns.
+The ns-verifier runs a review pass followed by an audit pass within a single agent invocation. The passes are sequential — the audit pass runs only after the review pass is clean — so the ns-executer addresses correctness before security concerns.
 
 - The review pass catches: missing planned steps, broken patterns, missed reuse opportunities, regressions outside the planned files, type/null safety, performance smells.
 - The audit pass catches: missing auth checks, injection, secrets in the diff, missing input validation, deep-link host validation.
 
-Many bugs are correctness AND security issues (e.g. a missing auth check is both). Both passes will catch them; the verifier reports findings from both in its output artifacts (`review.md` and `audit.md`).
+Many bugs are correctness AND security issues (e.g. a missing auth check is both). Both passes will catch them; the ns-verifier reports findings from both in its output artifacts (`review.md` and `audit.md`).
 
 ## Why the domain-hints channel
 
-The verifier's audit pass is intentionally generic — language-agnostic checklist, no project knowledge. The scout writes a `Domain risks worth flagging to auditor` section in `brief.md` when the codebase implies specific concerns (e.g. "this Part touches AI-generated content; verify provenance is stored", or "this Part adds a new RPC; ensure RLS-equivalent policy is set").
+The ns-verifier's audit pass is intentionally generic — language-agnostic checklist, no project knowledge. The ns-scout writes a `Domain risks worth flagging to auditor` section in `brief.md` when the codebase implies specific concerns (e.g. "this Part touches AI-generated content; verify provenance is stored", or "this Part adds a new RPC; ensure RLS-equivalent policy is set").
 
-This is the **only** channel by which project-specific risk reaches the verifier's audit pass. The verifier reads that section and folds it into its checklist. If the scout writes nothing there, the audit pass runs purely on its generic checks.
+This is the **only** channel by which project-specific risk reaches the ns-verifier's audit pass. The ns-verifier reads that section and folds it into its checklist. If the ns-scout writes nothing there, the audit pass runs purely on its generic checks.
 
-This design means: to use Northstar in a new domain, you don't extend the verifier's prompt — you trust the scout to discover and surface what matters. Domain knowledge flows through runtime artifacts, not hardcoded prompt edits.
+This design means: to use Northstar in a new domain, you don't extend the ns-verifier's prompt — you trust the ns-scout to discover and surface what matters. Domain knowledge flows through runtime artifacts, not hardcoded prompt edits.
 
 ## State management
 
@@ -91,21 +91,21 @@ The script interface is documented in the `## Script contracts` section of `comm
 
 ## Why the orchestrator lives in the slash command, not as a subagent
 
-The orchestrator's logic is in `commands/ns.md` (the slash command body) rather than `agents/northstar.md` (a subagent). The reason is a Claude Code platform constraint: **subagents invoked via the Agent tool cannot themselves spawn further subagents.** Only the top-level session can dispatch subagents. If the orchestrator were a subagent, it would have no way to call the scout / executer / verifier that it coordinates.
+The orchestrator's logic is in `commands/ns.md` (the slash command body) rather than `agents/northstar.md` (a subagent, removed in v0.7.2). The reason is a Claude Code platform constraint: **subagents invoked via the Agent tool cannot themselves spawn further subagents.** Only the top-level session can dispatch subagents. If the orchestrator were a subagent, it would have no way to call the ns-scout / ns-executer / ns-verifier that it coordinates.
 
-By putting the orchestrator into the slash command, invoking `/ns` makes the top-level session take on the orchestrator role for the turn. The top-level session does have access to the Agent tool and can dispatch the role subagents (scout, executer, verifier), which run in isolated contexts. The pipeline tree is exactly two levels deep: top-level session → role subagent.
+By putting the orchestrator into the slash command, invoking `/ns` makes the top-level session take on the orchestrator role for the turn. The top-level session does have access to the Agent tool and can dispatch the role subagents (ns-scout, ns-executer, ns-verifier), which run in isolated contexts. The pipeline tree is exactly two levels deep: top-level session → role subagent.
 
 Cost: the orchestrator's instructions (a few hundred lines) live in the top-level session's context for each turn — see "Context window impact" below.
 
-## Why the initializer is a slash command (and the indexer is a subagent)
+## Why the initializer is a slash command (and the ns-indexer is a subagent)
 
-`/ns-init` (`commands/ns-init.md`) is a thin orchestrator that dispatches the `indexer` role subagent and verifies its outputs. The split mirrors the rest of the pipeline:
+`/ns-init` (`commands/ns-init.md`) is a thin orchestrator that dispatches the `ns-indexer` role subagent and verifies its outputs. The split mirrors the rest of the pipeline:
 
-- The slash command runs at the top level so it can use `AskUserQuestion` (for the Refresh / Skip / Show summary prompt when intel already exists) and `Agent` (to dispatch the indexer).
-- The indexer is a one-shot subagent. It scans the repo and writes four markdown files under `.northstar/intel/`. Putting the scan in a subagent keeps the slash command's context bounded — the top-level session never sees the raw manifest dumps, lint configs, or directory listings that the indexer pages through. Same files-as-IPC contract as every other role.
+- The slash command runs at the top level so it can use `AskUserQuestion` (for the Refresh / Skip / Show summary prompt when intel already exists) and `Agent` (to dispatch the ns-indexer).
+- The ns-indexer is a one-shot subagent. It scans the repo and writes four markdown files under `.northstar/intel/`. Putting the scan in a subagent keeps the slash command's context bounded — the top-level session never sees the raw manifest dumps, lint configs, or directory listings that the ns-indexer pages through. Same files-as-IPC contract as every other role.
 - `/ns-init` enforces output verification the same way `/ns` does: each of the four intel files must exist, be non-empty, and contain its required H2 sentinel section. On failure it writes a `from: orchestrator` blocker and pauses for the user.
 
-The precursor gate is enforced by `/ns` and `/ns-discover`. The gate runs at INIT only for `/ns` (a mid-run intel deletion does not break an in-flight run) and at every invocation for `/ns-discover` (which produces a one-shot deliverable).
+The precursor gate is enforced by `/ns` and `/ns-discover`. The gate runs at INIT only for `/ns` (a mid-run intel deletion does not break an in-flight run) and at every invocation for `/ns-discover` (which produces a one-shot deliverable). The precursor gate previously also applied to `/northstar`, which was removed in v0.7.2.
 
 ## Why the discoverer is also a slash command
 
@@ -115,9 +115,9 @@ The precursor gate is enforced by `/ns` and `/ns-discover`. The gate runs at INI
 
 As of v0.8.0, `/ns-discover` operates as a three-piece split:
 
-- **Phase 0 (silent grounding)** delegates to `discover-scout` (`agents/discover-scout.md`): read-only, one-shot, uses model `claude-haiku-4-5-20251001` (haiku). It scans the repo (CLAUDE.md, README, manifests, directory tree) and returns a structured context summary as its response — no disk write. Appropriate here because the summary is transient context the slash command needs for interview grounding, not an artifact the user needs to inspect or retry. Keeping the scan in a subagent also separates the file-scan context from the interview session's context.
+- **Phase 0 (silent grounding)** delegates to `ns-discover-scout` (`agents/ns-discover-scout.md`): read-only, one-shot, uses model `claude-haiku-4-5-20251001` (haiku). It scans the repo (CLAUDE.md, README, manifests, directory tree) and returns a structured context summary as its response — no disk write. Appropriate here because the summary is transient context the slash command needs for interview grounding, not an artifact the user needs to inspect or retry. Keeping the scan in a subagent also separates the file-scan context from the interview session's context.
 - **Phases 1–4 (multi-turn interview)** remain in the slash command itself. The command holds structured answers in memory across `AskUserQuestion` turns and builds the answers file at `.northstar/discover/<slug>.answers.md` once the interview concludes. This answers file is the IPC artifact between the command and the next phase — same files-as-IPC contract as the rest of the pipeline.
-- **Phase 5 (plan-writing)** delegates to `discover-planner` (`agents/discover-planner.md`): write-only, one-shot, sonnet. It reads the answers file and writes a Northstar-format plan to `.northstar/plans/<slug>.md`. Putting plan-writing in a subagent keeps the slash command's context bounded and makes the plan-writing step independently retryable.
+- **Phase 5 (plan-writing)** delegates to `ns-discover-planner` (`agents/ns-discover-planner.md`): write-only, one-shot, sonnet. It reads the answers file and writes a Northstar-format plan to `.northstar/plans/<slug>.md`. Putting plan-writing in a subagent keeps the slash command's context bounded and makes the plan-writing step independently retryable.
 
 The discoverer and the orchestrator are intentionally decoupled. Its primary output is the plan file at the user's chosen path — this keeps the two commands composable: you can run `/ns-discover` to produce a plan, edit it by hand, then hand it to `/ns` — or skip `/ns-discover` entirely and write the plan yourself.
 
@@ -151,7 +151,7 @@ This guards against the common mistake of editing the plan mid-run and assuming 
 
 The orchestrator has `Bash` access for three things:
 1. SHA-256 the plan file.
-2. Compute diffs (`git diff`) to pass to the verifier.
+2. Compute diffs (`git diff`) to pass to the ns-verifier.
 3. Run `git add` and `git commit` to create one atomic commit per Part when a Part is verified clean (on by default; disabled per run with the `no-commit` argument), and on demand when the user chooses "Commit first" at a Part-completion prompt. Only the Part's own changed files are staged.
 
 It does NOT use Bash for arbitrary code execution. It does NOT deploy. It does NOT push, amend, or force-push.

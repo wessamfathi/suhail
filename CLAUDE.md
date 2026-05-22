@@ -9,7 +9,7 @@ Northstar is a generic plan-orchestration pipeline for Claude Code. The repo shi
 ## Repo layout at a glance
 
 ```
-agents/                # Role subagents (scout, executer, verifier).
+agents/                # Role subagents (ns-scout, ns-executer, ns-verifier).
 commands/              # Slash commands (ns, ns-init, ns-discover, ns-next). The orchestrator state machine lives in commands/ns.md.
 fixtures/              # Plan files used to exercise Northstar end-to-end.
 scripts/               # POSIX + PowerShell installers.
@@ -23,8 +23,8 @@ LICENSE                # MIT.
 
 - **The orchestrator is a slash command, not a subagent.** It lives in `commands/ns.md`. Earlier (v0.1.0) it was at `agents/northstar.md`; that did not work because Claude Code subagents cannot spawn nested subagents. The slash command body is injected into the top-level session, which can use the Agent tool to dispatch role subagents. Do not move it back into `agents/`. See `docs/architecture.md` § "Why the orchestrator lives in the slash command".
 - **Subagent IPC is files-only.** The orchestrator passes paths in prompts; subagents read inputs from disk and write outputs to disk. The orchestrator never echoes subagent bodies into the top-level conversation. Preserve this contract — it's why context stays bounded.
-- **Subagents must not coordinate directly.** Scout → executer is one-way. The verifier runs independently after the executer.
-- **Domain knowledge flows through one channel.** The verifier's audit pass is intentionally generic. Project-specific risks reach it only through `brief.md`'s `Domain risks worth flagging to auditor` section. Do not bake domain rules into the verifier's prompt.
+- **Subagents must not coordinate directly.** Ns-scout → ns-executer is one-way. The ns-verifier runs independently after the ns-executer.
+- **Domain knowledge flows through one channel.** The ns-verifier's audit pass is intentionally generic. Project-specific risks reach it only through `brief.md`'s `Domain risks worth flagging to auditor` section. Do not bake domain rules into the ns-verifier's prompt.
 
 ## When making changes
 
@@ -60,7 +60,7 @@ Northstar is hard to unit-test — it's a prompt pipeline. The practical test is
    Remove-Item -Recurse -Force .northstar
    Remove-Item -Force .northstar-*.txt -ErrorAction SilentlyContinue
    ```
-5. For changes that touch convention discovery (scout) or stack-conventions plumbing, also run against the <private-project> fixture (`<dev-dir>\tot\<private-plan>.md`) since that exercises a real project.
+5. For changes that touch convention discovery (ns-scout) or stack-conventions plumbing, also run against the <private-project> fixture (`<dev-dir>\tot\<private-plan>.md`) since that exercises a real project.
 
 When the smoke test passes against all fixtures, the change is good enough to release.
 
@@ -75,7 +75,7 @@ When the smoke test passes against all fixtures, the change is good enough to re
 
 - Don't run `/ns` from inside `<dev-dir>\northstar` against `fixtures/test_plan.md` and accidentally commit the resulting `.northstar/` or `.northstar-smoketest.txt` — `.gitignore` covers both, keep it that way.
 - Don't add a new dependency (npm package, pip module, anything) without strong justification. Northstar is markdown and shell. Keep it that way.
-- Don't make role subagents stack-aware. If they need stack context, they should discover it via the scout's `brief.md`.
+- Don't make role subagents stack-aware. If they need stack context, they should discover it via the ns-scout's `brief.md`.
 - Don't change the IPC mechanism (files in `.northstar/parts/<id>/`) without a major version bump and migration plan.
 
 ## See also

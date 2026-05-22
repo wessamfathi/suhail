@@ -1,8 +1,8 @@
 # Northstar Parallel-Verifier Smoke Test
 
-This plan exercises parallel verifier dispatch. Running it with `/ns fixtures/parallel-verifier-plan.md` should demonstrate the following sequence:
+This plan exercises parallel ns-verifier dispatch. Running it with `/ns fixtures/parallel-verifier-plan.md` should demonstrate the following sequence:
 
-1. Part 1 (level 0) executes first — scout, executer, verifier in order.
+1. Part 1 (level 0) executes first — ns-scout, ns-executer, ns-verifier in order.
 2. Part 2 and Part 3 (both level 1, both depending on Part 1) execute serially as executers.
 3. After both level-1 Parts complete execution, both verifiers fire in parallel in the same assistant turn.
 4. Both verifiers return `clean`. The run completes.

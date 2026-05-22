@@ -8,7 +8,7 @@ Append new entries at the top. Each entry has a date, a one-line headline, what 
 
 ## 2026-05-21 — Orchestrator auto-commits each Part atomically (on by default)
 
-**Decided:** after a Part is verified clean and marked `completed`, the orchestrator creates exactly one git commit containing only that Part's `files_changed`. On by default (`auto_commit: true`); opt out per run with the `no-commit` argument. Applies in all modes. The orchestrator never pushes, deploys, amends, or force-pushes, and a failed commit raises an orchestrator blocker instead of retrying/amending. The **executer** still never commits — committing is solely the orchestrator's job, at the verified-clean boundary.
+**Decided:** after a Part is verified clean and marked `completed`, the orchestrator creates exactly one git commit containing only that Part's `files_changed`. On by default (`auto_commit: true`); opt out per run with the `no-commit` argument. Applies in all modes. The orchestrator never pushes, deploys, amends, or force-pushes, and a failed commit raises an orchestrator blocker instead of retrying/amending. The **ns-executer** still never commits — committing is solely the orchestrator's job, at the verified-clean boundary.
 
 **Why:** an unattended (autorun) run previously left all Parts as one undifferentiated working-tree diff, making review, partial push, and selective rollback hard. One commit per verified Part maps the git history onto the plan's structure: each commit is reviewable in isolation, pushable independently, and revertable without disturbing other Parts. Tying the commit to the verified-clean transition (not to execution) means only Parts that passed review/audit enter history.
 
@@ -28,7 +28,7 @@ Append new entries at the top. Each entry has a date, a one-line headline, what 
 
 ## 2026-05-20 — Interview stays in the slash command; scan and author move to agents
 
-**Decided:** the multi-turn interview logic remains in `commands/ns-discover.md` (top-level slash command) because `AskUserQuestion` and cross-turn context require the top-level session. Phase 0 (silent grounding scan) moves to `discover-scout`: read-only, one-shot, uses model `claude-haiku-4-5-20251001`, returns a structured summary as its response rather than writing a file — appropriate because it produces no artifact the user needs to inspect or retry, only context the command needs for the interview. Phase 5 (plan-writing) moves to `discover-planner`: write-only, one-shot, consumes the answers file at `.northstar/discover/<slug>.answers.md` — same files-as-IPC contract as all other Northstar roles, keeping the command's context bounded and the plan-writing step independently retryable.
+**Decided:** the multi-turn interview logic remains in `commands/ns-discover.md` (top-level slash command) because `AskUserQuestion` and cross-turn context require the top-level session. Phase 0 (silent grounding scan) moves to `ns-discover-scout`: read-only, one-shot, uses model `claude-haiku-4-5-20251001`, returns a structured summary as its response rather than writing a file — appropriate because it produces no artifact the user needs to inspect or retry, only context the command needs for the interview. Phase 5 (plan-writing) moves to `ns-discover-planner`: write-only, one-shot, consumes the answers file at `.northstar/discover/<slug>.answers.md` — same files-as-IPC contract as all other Northstar roles, keeping the command's context bounded and the plan-writing step independently retryable.
 
 **Why the interview itself cannot be a subagent:** subagents are one-shot; a multi-turn interview requires holding context across `AskUserQuestion` round-trips, which only the top-level session supports.
 
@@ -61,7 +61,7 @@ By putting the orchestrator into the slash command body, invoking `/ns` injects 
 - Have `ns.md` symlink to `northstar.md`. Rejected — symlinks are awkward on Windows installs.
 - Keep the v0.1.0 fallback (top-level session implicitly playing orchestrator). Rejected — the fallback was implicit and undocumented; making it explicit is better.
 
-**Chosen:** `commands/ns.md` reads `commands/northstar.md` at runtime and follows it. Single source of truth in `northstar.md`.
+**Chosen:** `commands/ns.md` reads `commands/northstar.md` at runtime and follows it. Single source of truth in `northstar.md`. *(Update as of v0.7.2: `commands/northstar.md` was removed and `commands/ns.md` became the single source of truth.)*
 
 ---
 

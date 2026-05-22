@@ -2,6 +2,14 @@
 
 All notable changes to Northstar are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] — 2026-05-22
+
+### Changed
+- **All six agent files renamed to `ns-` prefix.** `agents/scout.md` → `agents/ns-scout.md`, `agents/executer.md` → `agents/ns-executer.md`, `agents/verifier.md` → `agents/ns-verifier.md`, `agents/indexer.md` → `agents/ns-indexer.md`, `agents/discover-scout.md` → `agents/ns-discover-scout.md`, `agents/discover-planner.md` → `agents/ns-discover-planner.md`. Internal `name:` frontmatter and identity sentences updated to match.
+- **`subagent_type` literals updated** in `commands/ns.md`, `commands/ns-init.md`, and `commands/ns-discover.md` to use the `ns-` forms (`ns-scout`, `ns-executer`, `ns-verifier`, `ns-indexer`, `ns-discover-scout`, `ns-discover-planner`).
+- **`/northstar` alias removed.** `commands/northstar.md` was deleted in v0.7.2; all remaining doc references to `/northstar` as a usable command have been removed. The sole orchestrator entrypoint is `/ns`.
+- **Docs and prose swept** — `CLAUDE.md`, `docs/architecture.md`, `docs/extending.md`, `docs/decisions.md`, `README.md`, `fixtures/README.md`, `fixtures/test_plan.md`, and `fixtures/parallel-verifier-plan.md` updated to use `ns-` identifier names wherever referring to agent files, dispatch names, or role identifiers. Historical CHANGELOG and decisions log entries are unchanged (they are archival records of the names that shipped under those versions).
+
 ## [0.11.0] — 2026-05-21
 
 ### Added

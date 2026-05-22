@@ -1,6 +1,6 @@
 # Extending Northstar
 
-Northstar ships with three role subagents (scout, executer, verifier) plus a slash-command orchestrator. Adding new roles is a matter of writing one markdown file and (usually) editing the orchestrator's state machine to dispatch it at the right phase.
+Northstar ships with three role subagents (ns-scout, ns-executer, ns-verifier) plus a slash-command orchestrator. Adding new roles is a matter of writing one markdown file and (usually) editing the orchestrator's state machine to dispatch it at the right phase.
 
 The orchestrator itself lives in `commands/ns.md` rather than as a subagent because Claude Code does not allow subagents to spawn further subagents. The top-level session plays the orchestrator role per turn. See `docs/architecture.md` for the full rationale.
 
@@ -18,7 +18,7 @@ If your new role can't satisfy this contract, it doesn't belong in the Northstar
 
 ## Adding a role: worked example
 
-Suppose you want to add a **performance-auditor** role that runs after the verifier on Parts that touch hot paths.
+Suppose you want to add a **performance-auditor** role that runs after the ns-verifier on Parts that touch hot paths.
 
 ### 1. Write the agent file
 
@@ -27,17 +27,17 @@ Create `agents/performance-auditor.md`:
 ```markdown
 ---
 name: performance-auditor
-description: Generic performance-focused diff review. Looks for unbounded loops over user data, missing pagination, sync I/O on render paths, missing memoization in hot components. Domain-specific hot paths are surfaced by the scout. Writes to .northstar/parts/<id>/perf.md.
+description: Generic performance-focused diff review. Looks for unbounded loops over user data, missing pagination, sync I/O on render paths, missing memoization in hot components. Domain-specific hot paths are surfaced by the ns-scout. Writes to .northstar/parts/<id>/perf.md.
 tools: Read, Glob, Grep, Bash
 model: sonnet
 ---
 
 You are the performance-auditor role in the Northstar pipeline...
 
-(Mirror the structure of agents/verifier.md: Input section, Process section, Output schema, Severity guidance, Don't section.)
+(Mirror the structure of agents/ns-verifier.md: Input section, Process section, Output schema, Severity guidance, Don't section.)
 ```
 
-Reuse the verifier template — same input shape (brief.md, diff path), same output shape (verdict + findings list), same retry semantics if you want it to re-dispatch the executer on blockers.
+Reuse the ns-verifier template — same input shape (brief.md, diff path), same output shape (verdict + findings list), same retry semantics if you want it to re-dispatch the ns-executer on blockers.
 
 ### 2. Update the orchestrator state machine
 
@@ -65,9 +65,9 @@ Bump `tool_version` in `commands/ns.md` in two locations: the heading (`# /ns �
 
 ## Skipping a role per-Part
 
-Sometimes a Part doesn't need every role. For example, a Part that only edits documentation may not need the verifier's full audit pass.
+Sometimes a Part doesn't need every role. For example, a Part that only edits documentation may not need the ns-verifier's full audit pass.
 
-The clean way to skip: have the role itself recognize when it has nothing to do and produce a `clean` verdict immediately. The verifier already does this (see its "When the diff is security-irrelevant" section in the audit pass). The cost is one subagent invocation that returns fast — usually a few seconds. Worth it because the rule stays uniform.
+The clean way to skip: have the role itself recognize when it has nothing to do and produce a `clean` verdict immediately. The ns-verifier already does this (see its "When the diff is security-irrelevant" section in the audit pass). The cost is one subagent invocation that returns fast — usually a few seconds. Worth it because the rule stays uniform.
 
 The alternative — having the orchestrator decide which roles to run per Part — adds branching complexity and a new decision point. Avoid unless the per-Part skip is very common.
 
@@ -81,18 +81,18 @@ If you don't need a role on your particular project, the better path is to insta
 
 ## Replacing a role's implementation
 
-The role contract is: same input shape, same output shape. You can totally rewrite the prompt body of `verifier.md` to match your team's house style, your specific tech stack, your specific concerns — as long as the output `Verdict` line still parses and findings still have `[severity]` tags, the orchestrator will work.
+The role contract is: same input shape, same output shape. You can totally rewrite the prompt body of `ns-verifier.md` to match your team's house style, your specific tech stack, your specific concerns — as long as the output `Verdict` line still parses and findings still have `[severity]` tags, the orchestrator will work.
 
 This is the recommended way to specialize Northstar without forking: keep the orchestrator generic, customize the role prompts locally.
 
 ## Per-language tweaks
 
-Northstar discovers stack conventions at runtime via the scout. You generally don't need per-language Northstar variants.
+Northstar discovers stack conventions at runtime via the ns-scout. You generally don't need per-language Northstar variants.
 
-If you find yourself wanting a TypeScript-flavored verifier that always nags about `any` types, the better path is:
+If you find yourself wanting a TypeScript-flavored ns-verifier that always nags about `any` types, the better path is:
 1. Put the convention in your project's `CLAUDE.md` or `AGENTS.md`.
-2. The scout will surface it in `brief.md` under "House conventions".
-3. The generic verifier will enforce it.
+2. The ns-scout will surface it in `brief.md` under "House conventions".
+3. The generic ns-verifier will enforce it.
 
 That way the same Northstar install works for your TypeScript project AND your Python project AND your Rust project.
 
