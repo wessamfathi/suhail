@@ -172,7 +172,7 @@ On every advance-state invocation: detect platform — Windows: `pwsh $scripts_d
 Derive the current level integer from the `level` field of any Part in `current_batch`. Append that integer to `batch_scouted_levels`, pipe next-state JSON to `northstar-write`. Emit all scout `Agent(...)` calls for `current_batch` (integer-sorted) in one assistant turn. Narrate: "🧭 Orchestrator — dispatching M scouts in parallel for level L: Part a, Part b, …"
 
 ```
-Agent(subagent_type="scout", description="Scout Part N",
+Agent(subagent_type="ns-scout", description="Scout Part N",
   prompt="""<intel block>\nPart description: <verbatim body>\nPart id: part-N\nIntel directory: .northstar/intel/\nOutput path: .northstar/parts/part-N/brief.md""")
 ```
 
@@ -224,7 +224,7 @@ On resolution: `Approve all` → `batch_auto_approve = true`, mark Parts `execut
 ### `dispatch_executer`
 1. Narrate "⚙️ Executer — starting Part N", then "⚙️ Executer — implementing changes". Dispatch:
    ```
-   Agent(subagent_type="executer", description="Execute Part N attempt K",
+   Agent(subagent_type="ns-executer", description="Execute Part N attempt K",
      prompt="""<intel block>\nBrief path: .northstar/parts/part-N/brief.md\nAttempt: K\n<if K>1: Prior review/audit paths + "Address every [blocker] finding.">\nOutput path: .northstar/parts/part-N/execution<-attempt-K if K>1>.md""")
    ```
    After it returns, narrate "⚙️ Executer — writing execution summary".
@@ -268,7 +268,7 @@ After all verifier `Agent(...)` calls return:
 2. B6 pipelined dispatch: if auto-advance mode (`batch_auto_approve == true` OR `mode == "run-to"` OR `mode == "autorun"`), call `next_eligible_part(for_batch_only=false)`; if non-null and no `brief.md`: invoke speculative scout dispatch in same turn. Set `state.speculative = { "part_id": "part-M", "origin": "B6" }`. Narrate: "🧭 Orchestrator — reviewing Part N; speculatively scouting Part M in parallel."
 3. Narrate "🔎 Reviewer — checking diff against brief", then "🔒 Auditor — scanning for security risks". Dispatch:
    ```
-   Agent(subagent_type="verifier", description="Verify Part N attempt K",
+   Agent(subagent_type="ns-verifier", description="Verify Part N attempt K",
      prompt="""<intel block>\nBrief path: .northstar/parts/part-N/brief.md\nDiff path: .northstar/parts/part-N/diff-attempt-K.patch\nExecution path: .northstar/parts/part-N/execution<-attempt-K if K>1>.md\nFiles changed: <comma-separated list>\nReview output path: .northstar/parts/part-N/review.md\nAudit output path: .northstar/parts/part-N/audit.md""")
    ```
    After it returns, narrate "🔎 Reviewer — reading results", then "🔒 Auditor — reading results".

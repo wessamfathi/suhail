@@ -101,7 +101,7 @@ Before asking anything, ground yourself in the project via `discover-scout`:
 2. Dispatch `discover-scout` via the Agent tool:
    ```
    Agent(
-     subagent_type="discover-scout",
+     subagent_type="ns-discover-scout",
      prompt="Repo root: <absolute path from step 1>"
    )
    ```
@@ -248,7 +248,7 @@ Then dispatch `discover-planner` via the Agent tool, passing the absolute path t
 
 ```
 Agent(
-  subagent_type="discover-planner",
+  subagent_type="ns-discover-planner",
   prompt="Answers file: <absolute-path-to-answers-file>"
 )
 ```

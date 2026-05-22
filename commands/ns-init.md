@@ -66,7 +66,7 @@ You also ensure the following directories exist (create if missing, do not touch
 6. **Dispatch the indexer.** Resolve the repo root via Bash (`pwd` on POSIX, `$PWD` on PowerShell) before dispatch so you can pass an absolute path.
    ```
    Agent(
-     subagent_type="indexer",
+     subagent_type="ns-indexer",
      description="Scan project intel",
      prompt="""
    Output directory: .northstar/intel/
