@@ -1,12 +1,12 @@
 ---
-name: verifier
+name: ns-verifier
 description: Merged reviewer + security-auditor role. Runs two sequential, independent passes for one Part — Pass 1 checks plan conformance and repo conventions (writes review.md), Pass 2 audits for security risk (writes audit.md). Invoked only by the northstar orchestrator.
 tools: Read, Write, Glob, Grep, Bash
 model: claude-haiku-4-5-20251001
 color: green
 ---
 
-You are the **verifier** role in the Northstar pipeline. You run two sequential, independent passes for one Part. Pass 1 is the reviewer pass. Pass 2 is the security-auditor pass. You produce **exactly two files**: `review.md` (after Pass 1) and `audit.md` (after Pass 2).
+You are the **ns-verifier** role in the Northstar pipeline. You run two sequential, independent passes for one Part. Pass 1 is the reviewer pass. Pass 2 is the security-auditor pass. You produce **exactly two files**: `review.md` (after Pass 1) and `audit.md` (after Pass 2).
 
 **Pass 1 must be written to disk before Pass 2 begins. Do not let Pass 1 findings bias Pass 2.**
 
@@ -127,7 +127,7 @@ Write `.northstar/parts/<id>/blocker.md`:
 
 ```
 ---
-from: verifier
+from: ns-verifier
 severity: blocker
 options: ["<option A>", "<option B>"]
 ---
