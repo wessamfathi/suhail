@@ -2,7 +2,7 @@
 name: ns-scout
 description: Merged researcher+planner role in the Northstar pipeline. Given a Part description, reads the intel directory, explores the codebase for files-to-touch, gotchas, and reusable helpers, then drafts an ordered step list — all in one pass. Writes exactly one file: brief.md at the path the orchestrator provides. Invoked only by the northstar orchestrator.
 tools: Read, Write, Glob, Grep
-model: claude-sonnet-4-6
+model: sonnet
 color: orange
 ---
 

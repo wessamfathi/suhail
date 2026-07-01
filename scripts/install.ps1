@@ -6,14 +6,28 @@
 #   .\scripts\install.ps1 -Project ... -Gitignore  # also append .northstar/ to <Project>\.gitignore
 #   .\scripts\install.ps1 -Force                 # overwrite existing files (default refuses and prints diff)
 
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$Project = "",
     [switch]$Force,
-    [switch]$Gitignore
+    [switch]$Gitignore,
+    [switch]$Help
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($Help) {
+@"
+Northstar installer (PowerShell).
+
+Usage:
+  .\scripts\install.ps1                            user-level install to ~\.claude\
+  .\scripts\install.ps1 -Project C:\path           install into C:\path\.claude\ instead
+  .\scripts\install.ps1 -Project C:\path -Gitignore  also append .northstar/ to <Project>\.gitignore
+  .\scripts\install.ps1 -Force                     overwrite existing files (default refuses and prints diff)
+"@ | Write-Output
+    exit 0
+}
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $srcAgents = Join-Path $repoRoot "agents"
@@ -116,7 +130,10 @@ if ($Gitignore) {
     if ($existing -contains $needle) {
         Write-Output "gitignore: .northstar/ already present in $gitignorePath"
     } else {
-        Add-Content -Path $gitignorePath -Value $needle
+        # Ensure the file ends with a newline so .northstar/ isn't concatenated onto the last line.
+        $raw = if (Test-Path $gitignorePath) { Get-Content -Path $gitignorePath -Raw } else { "" }
+        $prefix = if ($raw.Length -gt 0 -and $raw[-1] -ne "`n") { "`n" } else { "" }
+        Add-Content -Path $gitignorePath -Value "$prefix$needle"
         Write-Output "gitignore: appended .northstar/ to $gitignorePath"
     }
 }

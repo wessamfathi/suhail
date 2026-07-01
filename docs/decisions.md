@@ -22,7 +22,7 @@ Append new entries at the top. Each entry has a date, a one-line headline, what 
 
 **Why:** both operations are purely mechanical — JSON field extraction, string substitution, atomic file write, template rendering. No reasoning or judgment is required. Implementing them as agents would waste a full subagent context slot (and incur LLM latency) on a deterministic transform. Scripts execute synchronously and return a clear exit code, letting the orchestrator treat a non-zero exit as a hard blocker without a dispatch-verify cycle. The STATUS.md template previously inline in `commands/ns.md` is now owned by `northstar-write`, which reads `tool_version` from the incoming state JSON at runtime — eliminating a third version-sync point from the release checklist.
 
-**Considered alternatives:** an `ns-writer` subagent was considered in the pre-run analysis (`docs/script-extraction-candidates.md`); rejected because the agent dispatch overhead and async return pattern is heavier than the task warrants, and because adding an agent for a deterministic operation would contradict the principle that agents are reserved for tasks requiring LLM judgment (stack discovery, code generation, review). The blocker that surfaced during the original ns-writer design attempt confirmed the approach was wrong-sized for the problem.
+**Considered alternatives:** an `ns-writer` subagent was considered during the pre-run analysis; rejected because the agent dispatch overhead and async return pattern is heavier than the task warrants, and because adding an agent for a deterministic operation would contradict the principle that agents are reserved for tasks requiring LLM judgment (stack discovery, code generation, review). The blocker that surfaced during the original ns-writer design attempt confirmed the approach was wrong-sized for the problem.
 
 ---
 
@@ -42,7 +42,7 @@ Append new entries at the top. Each entry has a date, a one-line headline, what 
 
 Combined with the new "fail-loud preflight" in each role agent (which refuses to proceed if inputs are missing), the verification gate keeps hallucinations contained to one agent's output. The user is notified the moment something goes wrong rather than discovering a corrupted run three Parts later.
 
-**Mechanism:** sentinel-based content checks (e.g. research.md must contain `## Stack conventions` and `## Files to touch`; review.md must contain `## Verdict` with a valid value). Cheap to run, strong enough signal in practice.
+**Mechanism:** sentinel-based content checks (e.g. brief.md must contain `## Research` and `## Plan`; review.md must contain `## Verdict` with a valid value). Cheap to run, strong enough signal in practice.
 
 ---
 
@@ -67,11 +67,11 @@ By putting the orchestrator into the slash command body, invoking `/ns` injects 
 
 ## 2026-05-14 — Domain knowledge flows through one channel only
 
-**Decided:** the security-auditor's prompt is intentionally generic — a language-agnostic checklist (auth, authorization, injection, secrets, validation, deep links). Project-specific risks reach it only through the researcher's `Domain risks worth flagging to auditor` section in `research.md`.
+**Decided:** the ns-verifier's audit pass is intentionally generic — a language-agnostic checklist (auth, authorization, injection, secrets, validation, deep links). Project-specific risks reach it only through the ns-scout's `Domain risks worth flagging to auditor` section in `brief.md`.
 
-**Why:** otherwise every new domain requires forking the auditor prompt. With a single hint channel, the same auditor works for an Expo/Supabase app, a Rust CLI, a Python data pipeline — the researcher discovers what's at stake and tells the auditor.
+**Why:** otherwise every new domain requires forking the audit prompt. With a single hint channel, the same audit pass works for an Expo/Supabase app, a Rust CLI, a Python data pipeline — the ns-scout discovers what's at stake and tells the auditor.
 
-**Constraint this places on contributors:** never add domain-specific rules to `agents/security-auditor.md`. If you find a recurring risk that's project-specific, surface it as a recommendation in `docs/extending.md` for the researcher's risk-detection heuristics; do not bake it into the auditor.
+**Constraint this places on contributors:** never add domain-specific rules to the audit pass in `agents/ns-verifier.md`. If you find a recurring risk that's project-specific, surface it as a recommendation in `docs/extending.md` for the ns-scout's risk-detection heuristics; do not bake it into the verifier.
 
 ---
 
@@ -84,7 +84,7 @@ By putting the orchestrator into the slash command body, invoking `/ns` injects 
 The trade-off is small: each subagent does a few extra disk reads/writes. In exchange:
 
 - Orchestrator context bounded regardless of plan size or artifact size.
-- Every reasoning step is inspectable on disk — users can read `research.md` mid-run, audit it post-hoc, or rerun a stage from its artifacts.
+- Every reasoning step is inspectable on disk — users can read `brief.md` mid-run, audit it post-hoc, or rerun a stage from its artifacts.
 - Subagents are stateless across invocations.
 - `retry` is trivial (rename old artifacts to `.orig.md`, re-run).
 
@@ -110,17 +110,17 @@ If they shared findings, the second one would defer to the first and miss things
 
 **Why:** the user (and stakeholders) explicitly required per-Part user approval. Every Part is a checkpoint. This is the system's most important property in interactive mode — it's the reason a user can trust Northstar with a 50-Part plan.
 
-**Escape hatch:** `run-to <part-id>` bypasses per-Part pauses (and planner approval) until the target is reached. Designed for unattended runs. A 20-Part safety cap forces an interactive checkpoint even mid-target so unattended runs cannot go arbitrarily long.
+**Escape hatch:** `run-to <part-id>` bypasses per-Part pauses (and plan approval) until the target is reached. Designed for unattended runs. A 20-Part safety cap forces an interactive checkpoint even mid-target so unattended runs cannot go arbitrarily long.
 
 ---
 
 ## 2026-05-14 — Stack-agnostic role subagents
 
-**Decided:** none of the role subagents (researcher, planner, executer, reviewer, security-auditor) contain language-specific or framework-specific knowledge. The researcher discovers stack conventions at runtime by reading CLAUDE.md / AGENTS.md / README / manifests and surfaces them in `research.md`.
+**Decided:** none of the role subagents (ns-scout, ns-executer, ns-verifier) contain language-specific or framework-specific knowledge. The ns-scout discovers stack conventions at runtime by reading CLAUDE.md / AGENTS.md / README / manifests and surfaces them in `brief.md`.
 
 **Why:** the alternative is per-language Northstar variants, which immediately fragment. The runtime-discovery design lets one Northstar install handle TypeScript, Python, Rust, Go, anything — as long as the target project documents itself, the pipeline adapts.
 
-**Constraint this places on contributors:** never add conditional logic based on detected language to a role subagent's prompt. If a role needs language-specific behavior, it should derive it from `research.md`'s stack-conventions section.
+**Constraint this places on contributors:** never add conditional logic based on detected language to a role subagent's prompt. If a role needs language-specific behavior, it should derive it from `brief.md`'s stack-conventions section.
 
 ---
 

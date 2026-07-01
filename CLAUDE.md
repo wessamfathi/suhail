@@ -49,10 +49,10 @@ Northstar is hard to unit-test — it's a prompt pipeline. The practical test is
 
 1. Install the local working copy as the **project** version of itself:
    ```powershell
-   .\scripts\install.ps1 -Project <dev-dir>\northstar -Force
+   .\scripts\install.ps1 -Project /path/to/northstar -Force
    ```
-   This places the current `agents/` and `commands/` into `<dev-dir>\northstar\.claude/`, overriding any user-level install when you run inside this directory.
-2. Open a fresh Claude Code session in `<dev-dir>\northstar`.
+   This places the current `agents/` and `commands/` into the repo's `.claude/`, overriding any user-level install when you run inside this directory.
+2. Open a fresh Claude Code session in the repo root.
 3. Run `/ns fixtures/test_plan.md` and walk it through. Expected behaviors are documented at the top of each fixture file.
 4. After each run, clean up:
    ```powershell
@@ -60,7 +60,7 @@ Northstar is hard to unit-test — it's a prompt pipeline. The practical test is
    Remove-Item -Recurse -Force .northstar
    Remove-Item -Force .northstar-*.txt -ErrorAction SilentlyContinue
    ```
-5. For changes that touch convention discovery (ns-scout) or stack-conventions plumbing, also run against the <private-project> fixture (`<dev-dir>\tot\<private-plan>.md`) since that exercises a real project.
+5. For changes that touch convention discovery (ns-scout) or stack-conventions plumbing, also run against a real project's plan file (any repo you have access to with a multi-Part plan) since that exercises stack discovery against a non-fixture codebase.
 
 When the smoke test passes against all fixtures, the change is good enough to release.
 
@@ -73,7 +73,7 @@ When the smoke test passes against all fixtures, the change is good enough to re
 
 ## Don't
 
-- Don't run `/ns` from inside `<dev-dir>\northstar` against `fixtures/test_plan.md` and accidentally commit the resulting `.northstar/` or `.northstar-smoketest.txt` — `.gitignore` covers both, keep it that way.
+- Don't run `/ns` from inside the Northstar repo against `fixtures/test_plan.md` and accidentally commit the resulting `.northstar/` or `.northstar-smoketest.txt` — `.gitignore` covers both, keep it that way.
 - Don't add a new dependency (npm package, pip module, anything) without strong justification. Northstar is markdown and shell. Keep it that way.
 - Don't make role subagents stack-aware. If they need stack context, they should discover it via the ns-scout's `brief.md`.
 - Don't change the IPC mechanism (files in `.northstar/parts/<id>/`) without a major version bump and migration plan.

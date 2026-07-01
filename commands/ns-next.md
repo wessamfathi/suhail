@@ -30,20 +30,20 @@ Inject an implicit "Approve" without presenting an AskUserQuestion to the user:
 2. Set `auto_approve_planner = true`.
 3. Update `updated_at` to the current ISO 8601 timestamp.
 4. Write the full state.json back (per the state-machine invariant: always write the full file from the in-memory model, never partial-update).
-5. Locate `ns.md` using the two-location lookup described below, read it, and follow its instructions for **exactly one tick** as if the orchestrator had been invoked with empty arguments. The orchestrator's `awaiting_plan_approval` branch checks `auto_approve_planner` via the planning-phase short-circuit at `ns.md` "If `auto_approve_planner == true` (run-to mode): advance to `executing`. Re-tick." — but since we are already at `awaiting_plan_approval` (past the planning phase), the equivalent transition here is the "Approve" branch: set `current_step = "executing"`, then re-tick.
+5. Locate `ns.md` using the two-location lookup described below, read it, and follow its instructions for **exactly one tick** as if the orchestrator had been invoked with empty arguments. Since `current_step` is exactly `awaiting_plan_approval`, setting `auto_approve_planner = true` makes the orchestrator's plan-approval gate take its "Approve" branch automatically: set `current_step = "executing"`, then re-tick.
 6. After the single re-tick (which will dispatch the executer per the `executing` branch), end the turn. Do NOT loop further regardless of mode.
 
 This auto-approval intentionally bypasses the user's plan-review gate. Apply it only when `current_step` is exactly `awaiting_plan_approval` — never inject "Approve" for any other state.
 
 ### All other eligible states
 
-For `pending`, `researching`, `planning`, `executing`, `reviewing`, `auditing`:
+For `pending`, `scouting`, `executing`, `executed`, `verifying`:
 
 1. Locate `ns.md` using the two-location lookup below.
 2. Read it and follow its instructions for **exactly one tick**, treating this turn as if the user had typed `/ns continue` (empty arguments).
 3. Do NOT loop, even if `mode == "run-to"`. After the single tick, end the turn.
 
-This branch also covers the inter-Part "Continue to Part M?" handoff: when the orchestrator finishes a Part in interactive mode it transitions the next Part to `pending` and then ends with the AskUserQuestion. At the next invocation `current_step == "pending"`, and advancing `pending → researching` is exactly what selecting "Continue" would have done.
+This branch also covers the inter-Part "Continue to Part M?" handoff: when the orchestrator finishes a Part in interactive mode it transitions the next Part to `pending` and then ends with the AskUserQuestion. At the next invocation `current_step == "pending"`, and advancing `pending → scouting` is exactly what selecting "Continue" would have done.
 
 ### Locating `ns.md`
 

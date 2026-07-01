@@ -17,7 +17,7 @@ To work on Northstar with Northstar (recommended — you'll catch contract regre
 
 ```powershell
 # Install the working copy as the project-level Northstar for the repo itself.
-.\scripts\install.ps1 -Project <dev-dir>\northstar -Force
+.\scripts\install.ps1 -Project C:\path\to\northstar -Force
 # (POSIX: ./scripts/install.sh --project /path/to/northstar --force)
 ```
 
@@ -45,7 +45,7 @@ Northstar is a prompt pipeline, so the practical test is end-to-end against fixt
    Remove-Item -Force .northstar-*.txt -ErrorAction SilentlyContinue
    # (POSIX: rm -rf .northstar && rm -f .northstar-*.txt)
    ```
-4. For changes that affect scout convention-discovery, also try the pipeline against a real project (<private-project>'s `<private-plan>.md` is a good integration target if you have access to that repo).
+4. For changes that affect scout convention-discovery, also try the pipeline against a real project (any repo you have access to with a real plan file is a good integration target — it exercises stack discovery beyond the fixtures).
 
 When all fixtures behave as documented, the change is shippable.
 

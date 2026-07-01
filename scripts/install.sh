@@ -116,6 +116,10 @@ if [[ $GITIGNORE -eq 1 ]]; then
   if grep -qxF ".northstar/" "$GITIGNORE_PATH" 2>/dev/null; then
     echo "gitignore: .northstar/ already present in $GITIGNORE_PATH"
   else
+    # Ensure the file ends with a newline so .northstar/ isn't concatenated onto the last line.
+    if [[ -s "$GITIGNORE_PATH" && -n "$(tail -c1 "$GITIGNORE_PATH")" ]]; then
+      printf '\n' >> "$GITIGNORE_PATH"
+    fi
     echo ".northstar/" >> "$GITIGNORE_PATH"
     echo "gitignore: appended .northstar/ to $GITIGNORE_PATH"
   fi
