@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Northstar installer (POSIX).
+# Northstar installer (bash).
 #
 # Usage:
 #   ./scripts/install.sh                 # user-level install to ~/.claude/
