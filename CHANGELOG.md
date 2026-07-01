@@ -14,7 +14,7 @@ All notable changes to Northstar are documented here. The format follows [Keep a
 - `install.ps1` parity with `install.sh`: added `-Help`, disabled positional binding so a bare positional path is rejected instead of silently binding to `-Project`, and aligned the STATUS.md artifact arrow glyph (`->` → `→`).
 - Repository prepared for public release: removed internal-only development artifacts, and removed internal-only `plans/`, `docs/script-extraction-candidates.md`, and `.claude/skills/` from the tree.
 
-## [0.13.0] — YYYY-MM-DD
+## [0.13.0] — 2026-07-01
 
 ### Fixed
 - **Tick scripts synced to the batched state machine.** `scripts/northstar-tick.sh` / `.ps1` had drifted from the batched autorun/verification flow in `commands/ns.md`, breaking batch and autorun ticks; the scripts now match the current state machine.
