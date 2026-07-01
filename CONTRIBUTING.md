@@ -1,6 +1,6 @@
 # Contributing to Northstar
 
-Thanks for considering a contribution. Northstar is a small project — markdown files, two install scripts, no runtime — so most contributions are short and focused.
+Thanks for considering a contribution. Northstar is a small project (markdown files, two install scripts, no runtime), so most contributions are short and focused.
 
 ## Ground rules
 
@@ -11,9 +11,11 @@ Thanks for considering a contribution. Northstar is a small project — markdown
 
 ## Local setup
 
-Clone the repo. The orchestrator and role subagents are plain markdown — no build step.
+You'll need [Claude Code](https://claude.com/claude-code) installed to run the pipeline. Northstar itself has no runtime. The orchestrator and role subagents are plain markdown, so there's no build step.
 
-To work on Northstar with Northstar (recommended — you'll catch contract regressions immediately):
+Clone the repo.
+
+To work on Northstar with Northstar (recommended, you'll catch contract regressions immediately):
 
 ```powershell
 # Install the working copy as the project-level Northstar for the repo itself.
@@ -45,23 +47,32 @@ Northstar is a prompt pipeline, so the practical test is end-to-end against fixt
    Remove-Item -Force .northstar-*.txt -ErrorAction SilentlyContinue
    # (POSIX: rm -rf .northstar && rm -f .northstar-*.txt)
    ```
-4. For changes that affect scout convention-discovery, also try the pipeline against a real project (any repo you have access to with a real plan file is a good integration target — it exercises stack discovery beyond the fixtures).
+4. For changes that affect scout convention-discovery, also try the pipeline against a real project (any repo you have access to with a real plan file is a good integration target, since it exercises stack discovery beyond the fixtures).
 
 When all fixtures behave as documented, the change is shippable.
+
+## Authoring conventions
+
+A few repo conventions aren't obvious from the files themselves; see `CLAUDE.md` for the full list. The load-bearing ones:
+
+- Markdown uses LF line endings.
+- Role subagent prompts are structured with the H2 sections `## Input`, `## Process`, `## Output`, `## Blocker protocol`, `## Don't`. Keep the names consistent across roles.
+- The orchestrator narrates one short sentence per event. Context discipline is the design, so don't lengthen it.
+- Never commit `.northstar/` or `.northstar-smoketest.txt` (both are gitignored).
 
 ## Pull request expectations
 
 - One logical change per PR. Keep diffs small and focused.
 - Update `CHANGELOG.md` under `## [Unreleased]` with a one-line summary.
-- If you changed any role subagent's output schema, update every consumer of that schema (orchestrator parser, dependent subagents, docs). The schema is the contract — breaking it is fine but it must be threaded through.
+- If you changed any role subagent's output schema, update every consumer of that schema (orchestrator parser, dependent subagents, docs). The schema is the contract: changing it is allowed, but the change must be threaded through every consumer, and an incompatible change is a major-version bump (see Releasing).
 - If you added a new role, update `docs/extending.md` to reflect the new template.
 - If you changed the plan format, update both `docs/plan-format.md` and the parser in `commands/ns.md`.
 - If you changed user-visible behavior, update `README.md`.
 
 ## Releasing
 
-1. Move `## [Unreleased]` notes into a new `## [X.Y.Z] — YYYY-MM-DD` section.
-2. Bump `tool_version` in three places (see CLAUDE.md § "Version bumps").
+1. Move `## [Unreleased]` notes into a new `## [X.Y.Z] — YYYY-MM-DD` section in `CHANGELOG.md`.
+2. Bump the version at its other sync points (see CLAUDE.md § "Version bumps"): two spots in `commands/ns.md` (the `# /ns — Northstar vX.Y.Z` heading and the `tool_version` state field) plus the `README.md` footer line.
 3. Run every fixture one more time.
 4. Commit with message `release: vX.Y.Z`.
 5. Tag: `git tag vX.Y.Z`.
@@ -69,9 +80,9 @@ When all fixtures behave as documented, the change is shippable.
 7. Draft release notes on GitHub from the new CHANGELOG section.
 
 Semver applies:
-- **Patch** (`0.1.0 → 0.1.1`) — bug fixes, prompt tweaks, doc updates. No contract changes.
-- **Minor** (`0.1.0 → 0.2.0`) — new roles, new commands, new optional fields in state.json. Backward-compatible.
-- **Major** (`0.x → 1.0`) — IPC contract changes, plan-format changes, removing a role. Migration notes required.
+- **Patch** (`0.1.0 → 0.1.1`): bug fixes, prompt tweaks, doc updates. No contract changes.
+- **Minor** (`0.1.0 → 0.2.0`): new roles, new commands, new optional fields in state.json. Backward-compatible.
+- **Major** (`0.x → 1.0`): IPC contract changes, plan-format changes, removing a role. Migration notes required.
 
 ## Decision log
 
@@ -89,7 +100,7 @@ For changes that involve a design decision (not a typo fix), append to `docs/dec
 
 - A web UI. Northstar is a CLI/Claude Code tool.
 - Hosted state (cloud-synced `.northstar/`). Local-only by design.
-- Plugin systems for arbitrary code execution outside the role-subagent model. The current shape is intentional — keep it simple.
+- Plugin systems for arbitrary code execution outside the role-subagent model. The current shape is intentional; keep it simple.
 - Telemetry of any kind.
 
 ## Code of conduct
