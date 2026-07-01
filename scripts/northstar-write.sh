@@ -25,6 +25,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 
 die1() { echo "error: $*" >&2; exit 1; }
+die2() { echo "error: $*" >&2; exit 2; }
 
 # Wrapper around jq -r that strips \r to guard against Windows jq CRLF output.
 jqr() {
@@ -96,10 +97,10 @@ STATE_DIR="$(dirname "$STATE_PATH")"
 
 TMP_STATE="${STATE_PATH}.tmp"
 if ! printf '%s' "$payload" > "$TMP_STATE"; then
-  die1 "failed to write temporary state file: $TMP_STATE"
+  die2 "failed to write temporary state file: $TMP_STATE"
 fi
 if ! mv "$TMP_STATE" "$STATE_PATH"; then
-  die1 "failed to atomically replace state file: $STATE_PATH"
+  die2 "failed to atomically replace state file: $STATE_PATH"
 fi
 
 # ---------------------------------------------------------------------------
@@ -268,7 +269,7 @@ while IFS= read -r p_id; do
   p_id="$(printf '%s' "$p_id" | tr -d '\r')"
   [[ -z "$p_id" ]] && continue
   artifact_count=$((artifact_count + 1))
-  p_num="$(printf '%s' "$p_id" | sed 's/part-//')"
+  p_num="$(printf '%s' "$p_id" | sed 's/^part-//')"
   artifacts_text="${artifacts_text}- Part ${p_num} → \`.northstar/parts/${p_id}/\`
 "
 done < <(jq -r '.parts // [] | .[].id' "$STATE_PATH" | tr -d '\r')

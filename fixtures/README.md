@@ -47,7 +47,7 @@ A Part that references a deliberately nonexistent file. Tests that:
 - The orchestrator surfaces the blocker via AskUserQuestion with the options the ns-scout provided.
 - After the user resolves the blocker, the ns-scout resumes and the pipeline completes.
 
-This fixture cannot be fully automated — by design, it requires a human (you) to answer the blocker question. Choose any option to see the blocker-resolution flow.
+This fixture cannot be fully automated. By design, it requires a human (you) to answer the blocker question. Choose any option to see the blocker-resolution flow.
 
 ### `discover_sample_plan.md` — example `/ns-discover` output
 
@@ -55,12 +55,12 @@ This fixture cannot be fully automated — by design, it requires a human (you) 
 
 ### `parallel-verifier-plan.md` — parallel ns-verifier dispatch
 
-Three-Part plan that exercises parallel ns-verifier dispatch. Part 1 (level 0) runs first — ns-scout, ns-executer, and ns-verifier execute in order. Parts 2 and 3 (both level 1, both depending on Part 1) execute serially as ns-executers; then both ns-verifiers fire in parallel in the same assistant turn and both return `clean`. Expected artifacts:
+Three-Part plan that exercises parallel ns-verifier dispatch. Part 1 (level 0) runs first: ns-scout, ns-executer, and ns-verifier execute in order. Parts 2 and 3 (both level 1, both depending on Part 1) execute serially as ns-executers; then both ns-verifiers fire in parallel in the same assistant turn and both return `clean`. Expected artifacts:
 
 - `.northstar-pv-smoketest-base.txt` — created by Part 1.
 - `.northstar-pv-smoketest-a.txt` — created by Part 2.
 - `.northstar-pv-smoketest-b.txt` — created by Part 3.
-- `.northstar/STATUS.md` shows all three Parts as `done`.
+- `.northstar/STATUS.md` shows all three Parts as `completed`.
 
 ### `skip_flow.md` — /ns-skip flow
 

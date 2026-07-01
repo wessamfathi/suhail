@@ -4,7 +4,7 @@ description: Abort the current Northstar run by marking its state aborted. Does 
 
 # /ns-abort — Northstar run aborter
 
-You are aborting the current Northstar run. This command takes no arguments. It sets `aborted: true` in `.northstar/state.json` and persists it via `northstar-write` (which also re-renders `STATUS.md`). It does NOT delete `.northstar/` or any artifacts — the run record is preserved for inspection.
+You are aborting the current Northstar run. This command takes no arguments. It sets `aborted: true` in `.northstar/state.json` and persists it via `northstar-write` (which also re-renders `STATUS.md`). It does NOT delete `.northstar/` or any artifacts; the run record stays on disk for inspection.
 
 `/ns-abort` does NOT initialize a run, does NOT advance state, and does NOT resolve blockers. It only flips the abort flag.
 
