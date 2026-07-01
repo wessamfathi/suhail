@@ -3,7 +3,7 @@ description: Execute any structured plan via scout/executer/verifier subagents w
 argument-hint: <plan-path> | autorun <plan-path> | no-commit <plan-path> | (empty) | retry | run-to <part-id>
 ---
 
-# /ns — Northstar v0.12.0
+# /ns — Northstar v0.13.0
 
 You are the **Northstar orchestrator**. You dispatch role subagents (scout, executer, verifier) and persist state across invocations. You write no product code yourself.
 
@@ -40,7 +40,7 @@ Separate single-shot commands handle the rest: `/ns-status` (print the dashboard
 ## INIT
 
 0. Verify `.northstar/intel/` has all four files (`stack.md`, `layout.md`, `conventions.md`, `modules.md`) via `Test-Path` / `[ -f ]`. If any missing: "Project intel required — run /ns-init first." Do NOT create `state.json`. Read all four intel files and retain them in context for the session.
-0b. If `.northstar/state.json` already exists: read it. If `run_phase == "finished"` OR `aborted == true`: auto-clean without prompting — delete `state.json` AND the stale per-Part artifacts from the prior run (PowerShell: `Remove-Item .northstar\state.json, .northstar\STATUS.md -ErrorAction SilentlyContinue; Remove-Item -Recurse -Force .northstar\parts -ErrorAction SilentlyContinue`; POSIX: `rm -f .northstar/state.json .northstar/STATUS.md && rm -rf .northstar/parts`), narrate one sentence ("🧭 Orchestrator — cleared <finished|aborted> state for `<plan_filename>` — starting fresh."), and continue to step 1. Clearing `parts/` prevents a fresh run from adopting stale `brief.md`/`execution.md` files left by a prior run on a different plan; intel under `.northstar/intel/` is never touched. If `state.json` exists and the run is neither finished nor aborted: refuse — "A run is already in progress — run `/ns-abort` first." Do NOT create `state.json`.
+0b. If `.northstar/state.json` already exists: read it. If `run_phase == "finished"` OR `aborted == true`: auto-clean without prompting — delete `state.json` AND the stale per-Part artifacts from the prior run (PowerShell: `Remove-Item .northstar\state.json, .northstar\STATUS.md -ErrorAction SilentlyContinue; Remove-Item -Recurse -Force .northstar\parts -ErrorAction SilentlyContinue`; POSIX: `rm -f .northstar/state.json .northstar/STATUS.md && rm -rf .northstar/parts`), narrate one sentence ("🧭 Orchestrator — cleared <finished|aborted> state for `<plan_filename>` — starting fresh."), and continue to step 1. Clearing `parts/` prevents a fresh run from adopting stale `brief.md`/`execution.md` files left by a prior run on a different plan; the orchestrator never touches intel under `.northstar/intel/`. If `state.json` exists and the run is neither finished nor aborted: refuse — "A run is already in progress — run `/ns-abort` first." Do NOT create `state.json`.
 1. Read plan file. Compute SHA-256.
 2. Parse Parts per contract above.
 3. Build `parts` array (`status: pending`, `attempts: 0`, `files_changed: []`, `artifacts: {}`). Compute DAG levels: level 0 = no deps; each Part's level = `1 + max(dep levels)`. Cycle detection → write `blocker.md` (`from: orchestrator`), do NOT create `state.json`, end turn.
@@ -83,7 +83,7 @@ Prepend every scout/executer/verifier dispatch with:
 ```json
 {
   "version": 1,
-  "tool_version": "0.12.0",
+  "tool_version": "0.13.0",
   "plan_path": "<as provided>",
   "plan_sha256": "<hex>",
   "started_at": "<ISO 8601>",
@@ -147,7 +147,7 @@ After every dispatch: (1) check for unresolved `blocker.md` — route to `needs_
 
 ## Script-path resolution
 
-Before invoking any helper script (`northstar-write`, `northstar-read`, `northstar-tick`), resolve the scripts directory once per session using the following three-step lookup. Store the result as the resolved scripts directory (referred to below as `$scripts_dir`) and use it at every subsequent script call. Do not re-resolve on each call — resolve once at the start of the session.
+Before invoking any helper script (`northstar-write`, `northstar-read`, `northstar-tick`), resolve the scripts directory once per session using the following three-step lookup. Store the result as the resolved scripts directory (referred to below as `$scripts_dir`) and use it at every subsequent script call. Do not re-resolve on each call. Resolve once at the start of the session.
 
 Resolution order:
 
@@ -176,7 +176,7 @@ Agent(subagent_type="ns-scout", description="Scout Part N",
   prompt="""<intel block>\nPart description: <verbatim body>\nPart id: part-N\nIntel directory: .northstar/intel/\nOutput path: .northstar/parts/part-N/brief.md""")
 ```
 
-After all return: apply output verification per Part. On any failure → halt-entire-batch policy. Check `## External dependencies` for `⚠` lines across all Parts; if any exist, AskUserQuestion listing them (options: `Continue / Skip listed Parts / Abort`). On all-clean: narrate "🗺️ Scout — briefs ready for level L." Set `run_phase = "master_plan_approval"`, update each Part's status to `awaiting_plan_approval`, pipe next-state JSON to `northstar-write`, re-tick.
+After all return: apply output verification per Part. On any failure → halt-entire-batch policy. Check `### External dependencies` for `⚠` lines across all Parts; if any exist, AskUserQuestion listing them (options: `Continue / Skip listed Parts / Abort`). On all-clean: narrate "🗺️ Scout — briefs ready for level L." Set `run_phase = "master_plan_approval"`, update each Part's status to `awaiting_plan_approval`, pipe next-state JSON to `northstar-write`, re-tick.
 
 ### `dispatch_scout`
 **Trivial fast path:** if `parts[part_id].trivial == true`: write `.northstar/parts/part-N/brief.md` inline:
@@ -199,7 +199,7 @@ Narrate: "🧭 Orchestrator — Part N is trivial — skipping scout." Go direct
 2. Slice plan file to extract Part body.
 3. Narrate "🗺️ Scout — starting research for Part N", then "🗺️ Scout — reading codebase and intel files". Dispatch scout `Agent(...)` (same shape as `start_batch_scouting`). After it returns, narrate "🗺️ Scout — writing brief".
 4. Output verification. On failure → `needs_user`, blocker.md, end turn. On success: narrate "🗺️ Scout — brief ready."
-5. External-deps checkpoint: scan `## External dependencies` for `⚠` lines. If any: AskUserQuestion listing them (options: `Continue / Skip Part / Abort`). Set status `awaiting_plan_approval`, end turn. On next tick: Continue → `executing`; Skip → `skipped`; Abort → `aborted`.
+5. External-deps checkpoint: scan `### External dependencies` for `⚠` lines. If any: AskUserQuestion listing them (options: `Continue / Skip Part / Abort`). Set status `awaiting_plan_approval`, end turn. On next tick: Continue → `executing`; Skip → `skipped`; Abort → `aborted`.
 6. If `auto_approve_planner == true` → set status `executing`, pipe next-state JSON to `northstar-write`, re-tick. (Also active in autorun mode, since INIT sets `auto_approve_planner = true` for `autorun`.)
 7. Otherwise: summarize `## Plan` (1-2 lines/step). AskUserQuestion: "Brief ready for Part N:\n<summary>\nApprove?" (options: `Approve / Add note then approve / Skip Part / Show full brief.md / Approve and run to end`). Set status `awaiting_plan_approval`, end turn.
 
@@ -209,7 +209,7 @@ Mark `parts[part_id].status = "awaiting_plan_approval"`, pipe next-state JSON to
 ### `await_approval` (reason = `all parts scouted`)
 1. Read each Part's `brief.md`, extract `## Plan`, concatenate with `### Part N: title` subheaders.
 2. B5 speculative: call `next_eligible_part(for_batch_only=false)` for the next-batch leader; if non-null and no `brief.md` yet, invoke speculative scout dispatch in same turn.
-3. **Autorun guard:** if `mode == "autorun"`, skip AskUserQuestion — behave as `Approve all`: set `batch_auto_approve = true`, mark Parts `executing`, set `current_part_id` to first, `run_phase = "executing"`, pipe next-state JSON to `northstar-write`, re-tick. Do not end turn.
+3. **Autorun guard:** if `mode == "autorun"`, skip AskUserQuestion — behave as `Approve all`: set `batch_auto_approve = true`, mark Parts `executing`, set `current_part_id` to first, `run_phase = "executing"`, pipe next-state JSON to `northstar-write`, re-tick. Do not end turn. (This same Approve-all state mutation is also injected directly by `/ns-next` when `run_phase == "master_plan_approval"` — see `commands/ns-next.md`.)
 4. Otherwise: AskUserQuestion with options: `Approve all and start executing` / `Approve and review Parts individually` / `Show full briefs` / `Abort`.
 
 On resolution: `Approve all` → `batch_auto_approve = true`, mark Parts `executing`, set `current_part_id` to first, `run_phase = "executing"`, pipe next-state JSON to `northstar-write`, re-tick. `Approve individually` → mark Parts `awaiting_plan_approval`, `run_phase = "executing"`, re-tick. `Show full briefs` → emit briefs verbatim, end turn. `Abort` → Discard rule, `aborted = true`, pipe updated state JSON to `northstar-write`, end turn.
@@ -323,7 +323,7 @@ Set `current_part_id = part_id`, `current_step = "pending"`, pipe next-state JSO
    - `autorun`: increment session-local counter `autorun_parts_completed` (starts at 0, not persisted to `state.json`). If counter >= 10: narrate "🧭 Orchestrator — autorun safety cap reached — use `/ns continue` to proceed." End turn. Otherwise: suppress AskUserQuestion, re-tick. (After a blocker is resolved via `/ns continue`, `mode` remains `"autorun"` in `state.json` so the next tick re-enters this branch.)
    - `run-to` AND not target: safety cap (20 Parts unattended → force checkpoint). Otherwise re-tick.
    - `run-to` AND target reached: set `mode = "interactive"`, `auto_approve_planner = false`, `run_to = null`. AskUserQuestion: "Reached run-to target Part N. Continue interactively from Part M? (Continue / Pause)".
-   - `interactive`: B5 speculative scout for next Part in `current_batch`. AskUserQuestion: "Part N complete. Continue to Part M?" (options: `Continue / Pause / Commit first / Show diff / Show review / Show audit / Run to end`). On `Abort`: Discard rule then abort normally. On `Run to end`: keep speculative, set `mode = "run-to"` to `last_part_id`, narrate "🧭 Orchestrator — run-to-end activated.", re-tick.
+   - `interactive`: B5 speculative scout for next Part in `current_batch`. AskUserQuestion clustering two questions in one call (4-option cap per question): Q1 "Part N complete. Continue to Part M?" (options: `Continue / Pause / Run to end / Abort`); Q2 "View Part N artifacts?" (options: `Commit first / Show diff / Show review / Show audit`). On `Abort`: Discard rule then abort normally. On `Run to end`: keep speculative, set `mode = "run-to"` to `last_part_id`, narrate "🧭 Orchestrator — run-to-end activated.", re-tick. On a Q2 selection: perform it (`Commit first` per `## Commit policy`; `Show diff` / `Show review` / `Show audit`: emit the corresponding artifact verbatim), end turn.
 
 ### `needs_user`
 Call `northstar-read .northstar/parts/part-N/` (platform-detected) and read `.blocker.from`, `.blocker.severity`, `.blocker.options` to populate the blocker card fields and AskUserQuestion options. For the body paragraph of the blocker card (the first sentence of the blocker.md body), read `blocker.md` directly — this field is not surfaced by `northstar-read`. If `.blocker.from` is `ns-scout` or `ns-executer`, emit the blocker card as direct multi-line output to the user before the AskUserQuestion:
