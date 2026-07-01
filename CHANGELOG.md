@@ -2,18 +2,6 @@
 
 All notable changes to Northstar are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Fixed
-- **Blocker-resolution routing.** The role subagents write `from: ns-scout` / `ns-executer` / `ns-verifier` in `blocker.md`, but the orchestrator's `needs_user` handler matched the pre-`ns-` bare names (`scout` / `executer` / `verifier`), so an agent-raised blocker matched no routing branch — the blocker card was not emitted and the post-resolution phase restoration was undefined. `commands/ns.md` now matches the `ns-`-prefixed `from:` values that agents actually emit (blocker-card gate, phase-restoration map, and the `blocker.md` schema line).
-- Version sync: `commands/ns.md` heading + `tool_version` and the `README.md` footer bumped `0.11.0` → `0.12.0` to match the shipped `[0.12.0]` CHANGELOG section.
-- `.gitignore` newline guard in `install.sh` / `install.ps1` so `.northstar/` is not concatenated onto a target `.gitignore` that lacks a trailing newline.
-
-### Changed
-- **Docs/prose accuracy sweep** across `README.md`, `docs/architecture.md`, `docs/decisions.md`, `commands/ns-next.md`, `commands/ns-discover.md`, and the fixtures: corrected stale artifact names (`research.md` / `plan.md` → `brief.md`), non-existent per-Part states (`researching` / `planning` / `reviewing` / `auditing` → `scouting` / `executing` / `executed` / `verifying`), merged-role names (`researcher` / `planner` / `security-auditor` → `ns-scout` / `ns-verifier`), and the `ns-verifier` model in the architecture table (`sonnet` → `haiku`).
-- `install.ps1` parity with `install.sh`: added `-Help`, disabled positional binding so a bare positional path is rejected instead of silently binding to `-Project`, and aligned the STATUS.md artifact arrow glyph (`->` → `→`).
-- Repository prepared for public release: removed internal-only development artifacts, and removed internal-only `plans/`, `docs/script-extraction-candidates.md`, and `.claude/skills/` from the tree.
-
 ## [0.13.0] — 2026-07-01
 
 ### Fixed
@@ -24,6 +12,14 @@ All notable changes to Northstar are documented here. The format follows [Keep a
 - **`northstar-read.sh` / `.ps1` parse parity.** The two scripts had diverged in how they parsed state; brought back in sync so both read the same fields the same way.
 - Dead `die1()` function removed from `scripts/northstar-clean.sh`.
 - `ns-` naming normalized in command prose (`ns-init.md`, `ns-discover.md`), and `fixtures/test_plan.md` fixture titles corrected.
+- **Blocker-resolution routing.** The role subagents write `from: ns-scout` / `ns-executer` / `ns-verifier` in `blocker.md`, but the orchestrator's `needs_user` handler matched the pre-`ns-` bare names (`scout` / `executer` / `verifier`), so an agent-raised blocker matched no routing branch — the blocker card was not emitted and the post-resolution phase restoration was undefined. `commands/ns.md` now matches the `ns-`-prefixed `from:` values that agents actually emit (blocker-card gate, phase-restoration map, and the `blocker.md` schema line).
+- Version sync: `commands/ns.md` heading + `tool_version` and the `README.md` footer bumped `0.11.0` → `0.12.0` to match the shipped `[0.12.0]` CHANGELOG section.
+- `.gitignore` newline guard in `install.sh` / `install.ps1` so `.northstar/` is not concatenated onto a target `.gitignore` that lacks a trailing newline.
+
+### Changed
+- **Docs/prose accuracy sweep** across `README.md`, `docs/architecture.md`, `docs/decisions.md`, `commands/ns-next.md`, `commands/ns-discover.md`, and the fixtures: corrected stale artifact names (`research.md` / `plan.md` → `brief.md`), non-existent per-Part states (`researching` / `planning` / `reviewing` / `auditing` → `scouting` / `executing` / `executed` / `verifying`), merged-role names (`researcher` / `planner` / `security-auditor` → `ns-scout` / `ns-verifier`), and the `ns-verifier` model in the architecture table (`sonnet` → `haiku`).
+- `install.ps1` parity with `install.sh`: added `-Help`, disabled positional binding so a bare positional path is rejected instead of silently binding to `-Project`, and aligned the STATUS.md artifact arrow glyph (`->` → `→`).
+- Repository prepared for public release: removed internal-only development artifacts, and removed internal-only `plans/`, `docs/script-extraction-candidates.md`, and `.claude/skills/` from the tree.
 
 ## [0.12.0] — 2026-05-22
 
