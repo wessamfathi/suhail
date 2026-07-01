@@ -112,6 +112,70 @@ function Review-Exists {
 }
 
 # ---------------------------------------------------------------------------
+# batch helpers (execute/verify cycle for the current level's parts)
+# ---------------------------------------------------------------------------
+
+# Batch-First — lowest-numbered part in current_batch whose status is one of
+# the given statuses. Empty current_batch falls back to all parts (defensive).
+function Batch-First {
+    param([string[]]$Statuses)
+    $batch = @()
+    if ($null -ne $stateJson.current_batch) { $batch = @($stateJson.current_batch) }
+    foreach ($part in $stateJson.parts) {
+        if ($Statuses -contains $part.status) {
+            if ($batch.Count -eq 0 -or $batch -contains $part.id) {
+                return $part.id
+            }
+        }
+    }
+    return $null
+}
+
+# Batch-Directive — shared routing for the executing and batch_verifying
+# phases. Executers run serially; verification is dispatched once the whole
+# batch has executed; the batch completes once every part is terminal.
+function Batch-Directive {
+    if ($aborted -eq $true) {
+        Write-Output '{"action":"aborted"}'
+        return
+    }
+
+    $p = Batch-First @("needs_user")
+    if ($null -ne $p) {
+        Write-Output "{`"action`":`"needs_user`",`"part_id`":`"$p`"}"
+        return
+    }
+
+    # Any part still needing execution (or a brief) — dispatch it, serially.
+    $p = Batch-First @("executing", "pending", "scouting")
+    if ($null -ne $p) {
+        if (Brief-Exists $p) {
+            Write-Output "{`"action`":`"dispatch_executer`",`"part_id`":`"$p`"}"
+        } else {
+            Write-Output "{`"action`":`"dispatch_scout`",`"part_id`":`"$p`"}"
+        }
+        return
+    }
+
+    # All executed, none pending verification-dispatch yet — verify the batch.
+    $p = Batch-First @("executed")
+    if ($null -ne $p) {
+        Write-Output '{"action":"start_batch_verifying"}'
+        return
+    }
+
+    # Verifiers dispatched but results not yet processed by the orchestrator.
+    $p = Batch-First @("verifying")
+    if ($null -ne $p) {
+        Write-Output '{"action":"noop","reason":"verifiers in flight for batch"}'
+        return
+    }
+
+    # Every batch part is completed or skipped — advance the level.
+    Write-Output '{"action":"complete"}'
+}
+
+# ---------------------------------------------------------------------------
 # state-transition logic
 # ---------------------------------------------------------------------------
 
@@ -143,72 +207,9 @@ switch ($runPhase) {
         Write-Output '{"action":"await_approval","reason":"master_plan_approval"}'
     }
 
-    "executing" {
-        if ($aborted -eq $true) {
-            Write-Output '{"action":"aborted"}'
-            exit 0
-        }
-
-        if ($null -eq $currentPartId -or $currentPartId -eq "null" -or $currentPartId -eq "") {
-            Write-Output '{"action":"noop","reason":"no current_part_id in executing phase"}'
-            exit 0
-        }
-
-        $currentStep = $null
-        foreach ($part in $stateJson.parts) {
-            if ($part.id -eq $currentPartId) {
-                $currentStep = $part.status
-                break
-            }
-        }
-
-        switch ($currentStep) {
-            { $_ -eq "pending" -or $_ -eq "scouting" } {
-                if (Brief-Exists $currentPartId) {
-                    Write-Output "{`"action`":`"dispatch_executer`",`"part_id`":`"$currentPartId`"}"
-                } else {
-                    Write-Output "{`"action`":`"dispatch_scout`",`"part_id`":`"$currentPartId`"}"
-                }
-            }
-            "executing" {
-                if (Execution-Exists $currentPartId) {
-                    Write-Output "{`"action`":`"dispatch_verifier`",`"part_id`":`"$currentPartId`"}"
-                } else {
-                    Write-Output "{`"action`":`"dispatch_executer`",`"part_id`":`"$currentPartId`"}"
-                }
-            }
-            "verifying" {
-                if (Review-Exists $currentPartId) {
-                    Write-Output "{`"action`":`"advance_after_review`",`"part_id`":`"$currentPartId`"}"
-                } else {
-                    Write-Output "{`"action`":`"dispatch_verifier`",`"part_id`":`"$currentPartId`"}"
-                }
-            }
-            { $_ -eq "awaiting_plan_approval" -or $_ -eq "awaiting_part_approval" } {
-                Write-Output "{`"action`":`"await_approval`",`"part_id`":`"$currentPartId`"}"
-            }
-            "needs_user" {
-                Write-Output "{`"action`":`"needs_user`",`"part_id`":`"$currentPartId`"}"
-            }
-            { $_ -eq "completed" -or $_ -eq "skipped" } {
-                $nextPart = $null
-                foreach ($part in $stateJson.parts) {
-                    if ($part.status -eq "pending" -or $part.status -eq "scouting" -or
-                        $part.status -eq "executing" -or $part.status -eq "verifying") {
-                        $nextPart = $part.id
-                        break
-                    }
-                }
-                if ($null -eq $nextPart) {
-                    Write-Output '{"action":"complete","reason":"all parts terminal"}'
-                } else {
-                    Write-Output "{`"action`":`"advance_to_part`",`"part_id`":`"$nextPart`"}"
-                }
-            }
-            default {
-                Write-Output "{`"action`":`"noop`",`"reason`":`"unrecognised part status: $currentStep`",`"part_id`":`"$currentPartId`"}"
-            }
-        }
+    { $_ -eq "executing" -or $_ -eq "batch_verifying" } {
+        # Batched execute/verify cycle over the current level's parts.
+        Batch-Directive
     }
 
     "verifying" {
