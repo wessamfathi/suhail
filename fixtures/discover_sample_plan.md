@@ -8,7 +8,7 @@ Use this file to:
 - Hand-edit a discovery output and learn the plan-format contract by example.
 - Diff against your own discovery runs to spot drift.
 
-Do **not** run it directly — there is no target project for it to execute against, and several Parts reference paths that don't exist in this repo. It's documentation by example.
+Do **not** run it directly. There is no target project for it to execute against, and several Parts reference paths that don't exist in this repo. It's documentation by example.
 
 For the actual contract see [`docs/plan-format.md`](../docs/plan-format.md).
 

@@ -109,17 +109,17 @@ Run preflight checks against this representation (see **Fail-loud preflight** ab
 
 ### Step 2 — Assemble the plan
 
-Compose the plan text in memory following the invariants below. Do not invent content — every field in the plan must trace back to an answers-file field.
+Compose the plan text in memory following the invariants below. Do not invent content. Every field in the plan must trace back to an answers-file field.
 
 **Plan-format invariants (encode these exactly):**
 
 1. **Single H1 title.** The first line of the plan is `# <title>` using the `## Title` value. No other H1 appears.
 
-2. **Context paragraph.** Immediately after the H1, write a short paragraph (2–4 sentences) synthesising the vision bullets and clarifications into a prose summary of what the plan achieves, who benefits, and what success looks like. Keep it factual — no marketing language.
+2. **Context paragraph.** Immediately after the H1, write a short paragraph (2–4 sentences) synthesising the vision bullets and clarifications into a prose summary of what the plan achieves, who benefits, and what success looks like. Keep it factual, with no marketing language.
 
 3. **Consecutive Part numbering from 1.** Parts are emitted in the order they appear in `## Parts`, numbered 1, 2, 3, … regardless of how the user worded them in the interview. If the source numbers are not consecutive (e.g. the user listed 1, 2, 4), re-number them starting at 1 and adjust all `Depends on` references accordingly.
 
-4. **Em-dash separator (U+2014).** Every Part heading uses the form `### Part N — <title>`. The separator character is the Unicode em-dash `—` (U+2014). A single space appears on each side of the em-dash. Do not use an ASCII hyphen-minus (`-`), an en-dash (`–`), or a double-hyphen (`--`). This is not cosmetic — the orchestrator's Part detector regex requires the em-dash; any other character causes the Part to be silently skipped.
+4. **Em-dash separator (U+2014).** Every Part heading uses the form `### Part N — <title>`. The separator character is the Unicode em-dash `—` (U+2014). A single space appears on each side of the em-dash. Do not use an ASCII hyphen-minus (`-`), an en-dash (`–`), or a double-hyphen (`--`). This is not cosmetic. The orchestrator's Part detector regex requires the em-dash, and any other character causes the Part to be silently skipped.
 
 5. **Dependency phrasing.** Inside each Part's body, include a `**Depends on:**` line. Acceptable forms (all parse correctly):
    - `**Depends on:** (none)` — when the Part has no prerequisites.
@@ -173,12 +173,12 @@ options: ["Fix the answers file and re-run", "Provide a different answers-file p
 <one-paragraph description of the problem, with file path and the specific field or section that failed preflight>
 ```
 
-Do not write a partial plan. If preflight fails, write `blocker.md` and stop — your final chat message should describe the blocker path and what the user must fix.
+Do not write a partial plan. If preflight fails, write `blocker.md` and stop. Your final chat message should describe the blocker path and what the user must fix.
 
 ## Don't
 
 - Do not write anything other than the single plan file (and `blocker.md` on failure). No research notes, no summaries, no extra markdown files.
-- Do not invent answers not captured in the answers file. If the answers file is vague, emit what it says and add a note in `## Open questions` — do not fill gaps with assumptions.
+- Do not invent answers not captured in the answers file. If the answers file is vague, emit what it says and add a note in `## Open questions` rather than filling gaps with assumptions.
 - Do not use an ASCII hyphen-minus (`-`), en-dash (`–`), or double-hyphen (`--`) as the Part-heading separator. Only the Unicode em-dash `—` (U+2014) is accepted by the parser.
 - Do not place plan-level H2 sections (`## Open questions`, `## Critical files reference`, etc.) inside the body of the last Part. They must appear after the last `### Part N —` heading.
 - Do not print the plan body in chat in place of writing the file. The Write tool call is non-optional; an inline response is a contract violation the orchestrator will reject as a missing artifact.

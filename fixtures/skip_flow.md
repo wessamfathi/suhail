@@ -11,12 +11,12 @@ Run with:
 **Expected behavior:**
 1. INIT parses two Parts and initialises `STATUS.md`.
 2. Part 1 executes: scout, executer, and verifier run in order; `.northstar-skip-1.txt` is created.
-3. Orchestrator pauses and prompts to continue -- **this is the manual step**. Type `/ns-skip` instead of confirming Continue. The orchestrator marks Part 2 `skipped` and advances to completion.
+3. Orchestrator pauses and prompts to continue. **This is the manual step.** Type `/ns-skip` instead of confirming Continue. The orchestrator marks Part 2 `skipped` and advances to completion.
 4. Part 2 is marked `skipped` in `.northstar/STATUS.md`; the executer is never invoked for Part 2.
 5. `.northstar/STATUS.md` shows Part 1 `completed` and Part 2 `skipped`.
 6. `.northstar-skip-2.txt` is NOT created (Part 2 never ran).
 
-Note: This fixture requires a manual step -- see step 3 above.
+Note: This fixture requires a manual step. See step 3 above.
 
 After verifying, clean up:
 

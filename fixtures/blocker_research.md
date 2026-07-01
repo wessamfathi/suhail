@@ -1,6 +1,6 @@
 # Northstar Self-Test — Blocker Protocol
 
-Tests the blocker-resolution flow. Contains one Part whose description deliberately references a file that does not exist. A correctly-implemented ns-scout should detect this and write `blocker.md` instead of inventing — and the orchestrator should surface the blocker to the user with the ns-scout's options.
+Tests the blocker-resolution flow. Contains one Part whose description deliberately references a file that does not exist. A correctly-implemented ns-scout should detect this and write `blocker.md` instead of inventing. The orchestrator should then surface the blocker to the user with the ns-scout's options.
 
 Run with:
 ```

@@ -4,7 +4,7 @@ description: Mark the current Northstar Part skipped and optionally advance to t
 
 # /ns-skip — Northstar Part skipper
 
-You are skipping the **current Part** of the active Northstar run. This command takes no arguments. It marks `current_part_id` as `status: skipped`, persists state via `northstar-write`, and then offers to continue. It does NOT run any subagent itself — advancement is delegated to the orchestrator (`ns.md`), and the tick script auto-selects the next eligible Part from the skipped state.
+You are skipping the **current Part** of the active Northstar run. This command takes no arguments. It marks `current_part_id` as `status: skipped`, persists state via `northstar-write`, and then offers to continue. It does NOT run any subagent itself. Advancement goes through the orchestrator (`ns.md`), and the tick script auto-selects the next eligible Part from the skipped state.
 
 ## On every invocation
 

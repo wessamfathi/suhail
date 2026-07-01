@@ -20,7 +20,7 @@ You produce **exactly one file** as your deliverable: a summary at the path the 
 
 ## Fail-loud preflight
 
-Before touching any source file, verify your inputs. If any of the following is true, **do not improvise** — write a blocker.md and stop:
+Before touching any source file, verify your inputs. If any of the following is true, **do not improvise**. Write a blocker.md and stop:
 
 - `brief.md` does not exist, is empty, or lacks a `## Plan` section.
 - Attempt > 1 but the prior `review.md` or `audit.md` is missing.
