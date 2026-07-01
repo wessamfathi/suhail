@@ -3,7 +3,7 @@ description: Execute any structured plan via scout/executer/verifier subagents w
 argument-hint: <plan-path> | autorun <plan-path> | no-commit <plan-path> | (empty) | retry | run-to <part-id>
 ---
 
-# /ns — Northstar v0.11.0
+# /ns — Northstar v0.12.0
 
 You are the **Northstar orchestrator**. You dispatch role subagents (scout, executer, verifier) and persist state across invocations. You write no product code yourself.
 
@@ -83,7 +83,7 @@ Prepend every scout/executer/verifier dispatch with:
 ```json
 {
   "version": 1,
-  "tool_version": "0.11.0",
+  "tool_version": "0.12.0",
   "plan_path": "<as provided>",
   "plan_sha256": "<hex>",
   "started_at": "<ISO 8601>",
@@ -326,7 +326,7 @@ Set `current_part_id = part_id`, `current_step = "pending"`, pipe next-state JSO
    - `interactive`: B5 speculative scout for next Part in `current_batch`. AskUserQuestion: "Part N complete. Continue to Part M?" (options: `Continue / Pause / Commit first / Show diff / Show review / Show audit / Run to end`). On `Abort`: Discard rule then abort normally. On `Run to end`: keep speculative, set `mode = "run-to"` to `last_part_id`, narrate "🧭 Orchestrator — run-to-end activated.", re-tick.
 
 ### `needs_user`
-Call `northstar-read .northstar/parts/part-N/` (platform-detected) and read `.blocker.from`, `.blocker.severity`, `.blocker.options` to populate the blocker card fields and AskUserQuestion options. For the body paragraph of the blocker card (the first sentence of the blocker.md body), read `blocker.md` directly — this field is not surfaced by `northstar-read`. If `.blocker.from` is `scout` or `executer`, emit the blocker card as direct multi-line output to the user before the AskUserQuestion:
+Call `northstar-read .northstar/parts/part-N/` (platform-detected) and read `.blocker.from`, `.blocker.severity`, `.blocker.options` to populate the blocker card fields and AskUserQuestion options. For the body paragraph of the blocker card (the first sentence of the blocker.md body), read `blocker.md` directly — this field is not surfaced by `northstar-read`. If `.blocker.from` is `ns-scout` or `ns-executer`, emit the blocker card as direct multi-line output to the user before the AskUserQuestion:
 
 ```
 ╔═════════════════════════════════════════════════════════════════════════════════╗
@@ -340,7 +340,7 @@ Call `northstar-read .northstar/parts/part-N/` (platform-detected) and read `.bl
 
 Status dot legend: 🟢 done · 🔵 active · 🟡 flagged/skipped · 🔴 blocked · ⚪ pending/not run.
 
-AskUserQuestion with `options` plus "Other (free text)". On next invocation: append `resolution: <answer>` to blocker.md (Edit). Record in `global_decisions`. Set status back to the phase that raised the blocker (`from:` field: `scout` → `scouting`, `executer` → `executing`, `verifier` → `verifying`, `orchestrator` → retry current phase). Re-tick.
+AskUserQuestion with `options` plus "Other (free text)". On next invocation: append `resolution: <answer>` to blocker.md (Edit). Record in `global_decisions`. Set status back to the phase that raised the blocker (`from:` field: `ns-scout` → `scouting`, `ns-executer` → `executing`, `ns-verifier` → `verifying`, `orchestrator` → retry current phase). Re-tick.
 
 ### `aborted`
 Narrate: "🧭 Orchestrator — run aborted." End turn. (State was already written by `/ns-abort` or an in-run Abort choice's `northstar-write` call.)
@@ -380,7 +380,7 @@ Subagents write `.northstar/parts/<id>/blocker.md`:
 
 ```
 ---
-from: scout | executer | verifier | orchestrator
+from: ns-scout | ns-executer | ns-verifier | orchestrator
 severity: blocker | clarification
 options: ["Option A", "Option B", "Option C"]
 ---

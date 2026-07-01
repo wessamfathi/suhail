@@ -285,7 +285,7 @@ if ($null -ne $parts -and @($parts).Count -gt 0) {
         $partId  = if ($null -ne $part.id) { $part.id } else { "" }
         $partNum = $partId -replace "^part-", ""
         $bt = '`'
-        [void]$sb.Append("- Part $partNum -> $bt.northstar/parts/$partId/$bt" + $nl)
+        [void]$sb.Append("- Part $partNum $([char]0x2192) $bt.northstar/parts/$partId/$bt" + $nl)
     }
 } else {
     [void]$sb.Append("None.$nl")

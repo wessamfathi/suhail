@@ -14,7 +14,7 @@ You are the **ns-verifier** role in the Northstar pipeline. You run two sequenti
 
 - Path to `brief.md` — scout output (contains `## Research`, `## Plan`, `## Domain risks worth flagging to auditor`).
 - Path to `diff-attempt-N.patch` — the unified diff.
-- The list of files changed (from `execution.md`). Read them at HEAD.
+- Path to `execution.md` (or `execution-attempt-K.md`) — executer output. Read its `## Files changed` list and read those files at HEAD.
 - Output paths for `review.md` and `audit.md`.
 - **Project intel (inline or on disk).** If the dispatch prompt contains a `## Project intel (from /ns-init)` block, use its inlined sub-blocks; otherwise fall back to reading `.northstar/intel/*.md` from disk.
 

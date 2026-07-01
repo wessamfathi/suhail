@@ -2,6 +2,18 @@
 
 All notable changes to Northstar are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Blocker-resolution routing.** The role subagents write `from: ns-scout` / `ns-executer` / `ns-verifier` in `blocker.md`, but the orchestrator's `needs_user` handler matched the pre-`ns-` bare names (`scout` / `executer` / `verifier`), so an agent-raised blocker matched no routing branch — the blocker card was not emitted and the post-resolution phase restoration was undefined. `commands/ns.md` now matches the `ns-`-prefixed `from:` values that agents actually emit (blocker-card gate, phase-restoration map, and the `blocker.md` schema line).
+- Version sync: `commands/ns.md` heading + `tool_version` and the `README.md` footer bumped `0.11.0` → `0.12.0` to match the shipped `[0.12.0]` CHANGELOG section.
+- `.gitignore` newline guard in `install.sh` / `install.ps1` so `.northstar/` is not concatenated onto a target `.gitignore` that lacks a trailing newline.
+
+### Changed
+- **Docs/prose accuracy sweep** across `README.md`, `docs/architecture.md`, `docs/decisions.md`, `commands/ns-next.md`, `commands/ns-discover.md`, and the fixtures: corrected stale artifact names (`research.md` / `plan.md` → `brief.md`), non-existent per-Part states (`researching` / `planning` / `reviewing` / `auditing` → `scouting` / `executing` / `executed` / `verifying`), merged-role names (`researcher` / `planner` / `security-auditor` → `ns-scout` / `ns-verifier`), and the `ns-verifier` model in the architecture table (`sonnet` → `haiku`).
+- `install.ps1` parity with `install.sh`: added `-Help`, disabled positional binding so a bare positional path is rejected instead of silently binding to `-Project`, and aligned the STATUS.md artifact arrow glyph (`->` → `→`).
+- Repository prepared for public release: removed internal-only development artifacts, and removed internal-only `plans/`, `docs/script-extraction-candidates.md`, and `.claude/skills/` from the tree.
+
 ## [0.12.0] — 2026-05-22
 
 ### Changed
@@ -9,6 +21,7 @@ All notable changes to Northstar are documented here. The format follows [Keep a
 - **`subagent_type` literals updated** in `commands/ns.md`, `commands/ns-init.md`, and `commands/ns-discover.md` to use the `ns-` forms (`ns-scout`, `ns-executer`, `ns-verifier`, `ns-indexer`, `ns-discover-scout`, `ns-discover-planner`).
 - **`/northstar` alias removed.** `commands/northstar.md` was deleted in v0.7.2; all remaining doc references to `/northstar` as a usable command have been removed. The sole orchestrator entrypoint is `/ns`.
 - **Docs and prose swept** — `CLAUDE.md`, `docs/architecture.md`, `docs/extending.md`, `docs/decisions.md`, `README.md`, `fixtures/README.md`, `fixtures/test_plan.md`, and `fixtures/parallel-verifier-plan.md` updated to use `ns-` identifier names wherever referring to agent files, dispatch names, or role identifiers. Historical CHANGELOG and decisions log entries are unchanged (they are archival records of the names that shipped under those versions).
+- `state.tool_version` bumped to `0.12.0`.
 
 ## [0.11.0] — 2026-05-21
 
@@ -110,7 +123,7 @@ All notable changes to Northstar are documented here. The format follows [Keep a
 ## [0.4.0] — 2026-05-17
 
 ### Added
-- **Performance phase 1 — context-discipline wins across the role pipeline.** Six coordinated improvements land together, each targeting a specific source of wasted context or wasted dispatch in the role-subagent loop. (A1) The researcher now emits a stack-intel baseline so downstream roles inherit project conventions without re-discovering them. (A2) The planner's TL;DR section is gated as a hard contract — the orchestrator surfaces it on transition and refuses malformed deliverables. (A3) The executer emits early-exit signals (blocker.md vs. partial execution.md) so the orchestrator can short-circuit reviewer/auditor dispatch when no source-file work landed. (A4) The reviewer enforces a hard cap on per-review nits (five) so review.md stays bounded in context size regardless of how noisy the diff is. (A5) The security-auditor gains a checklist-coverage section that ties each finding back to a domain risk surfaced in research.md, making audit.md diffable across attempts. (A6) The indexer emits a sources manifest enumerating every file scanned so re-runs are reproducible and the manifest itself is a cache key. See `plans/plan_now.md` for the source analysis behind these changes.
+- **Performance phase 1 — context-discipline wins across the role pipeline.** Six coordinated improvements land together, each targeting a specific source of wasted context or wasted dispatch in the role-subagent loop. (A1) The researcher now emits a stack-intel baseline so downstream roles inherit project conventions without re-discovering them. (A2) The planner's TL;DR section is gated as a hard contract — the orchestrator surfaces it on transition and refuses malformed deliverables. (A3) The executer emits early-exit signals (blocker.md vs. partial execution.md) so the orchestrator can short-circuit reviewer/auditor dispatch when no source-file work landed. (A4) The reviewer enforces a hard cap on per-review nits (five) so review.md stays bounded in context size regardless of how noisy the diff is. (A5) The security-auditor gains a checklist-coverage section that ties each finding back to a domain risk surfaced in research.md, making audit.md diffable across attempts. (A6) The indexer emits a sources manifest enumerating every file scanned so re-runs are reproducible and the manifest itself is a cache key.
 
 ### Changed
 - State schema bumps `tool_version` to `0.4.0`.
@@ -172,7 +185,7 @@ All notable changes to Northstar are documented here. The format follows [Keep a
 ## [0.1.2] — 2026-05-15
 
 ### Fixed
-- **Bug 1 (showstopper):** the four read-only role subagents (researcher, planner, reviewer, security-auditor) lacked the `Write` tool, so they could not produce their output artifacts (research.md, plan.md, review.md, audit.md). Pipeline runs would fail silently at Part 1 / researching phase. Discovered during a pre-flight audit against <private-project>'s <private-plan>.md.
+- **Bug 1 (showstopper):** the four read-only role subagents (researcher, planner, reviewer, security-auditor) lacked the `Write` tool, so they could not produce their output artifacts (research.md, plan.md, review.md, audit.md). Pipeline runs would fail silently at Part 1 / researching phase. Discovered during a pre-flight audit against a real-world plan file.
 - **Bug 2:** the plan parser extended the last Part's body to end-of-file, absorbing any plan-level trailing sections (`## Critical files reference`, `## Verification`, `## Open questions`, etc.) into the final Part's brief. A Part's body now ends at the EARLIER of the next Part heading, the next H2 heading, or EOF.
 - **Bug 3:** the dependency parser only matched `Depends on Part N` for a single N. A line like `Depends on Part 2 and Part 4` captured only Part 2. The new rule scans from each `Depends on` anchor to end-of-line and collects every integer preceded by `Part` or `Parts` (case-insensitive, deduplicated).
 

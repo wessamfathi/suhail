@@ -51,7 +51,7 @@ If any dependency is `down`, the overall `status` field flips to `degraded` (not
 
 ### Part 3 — Wire `/health` into the monitoring config
 
-Add the new endpoint to the existing monitoring configuration so the on-call dashboard picks it up without manual setup. The exact path and format depend on what the project's monitoring stack already uses — the researcher should discover this from `monitoring/` or equivalent before the planner commits to a shape.
+Add the new endpoint to the existing monitoring configuration so the on-call dashboard picks it up without manual setup. The exact path and format depend on what the project's monitoring stack already uses — the ns-scout should discover this from `monitoring/` or equivalent before committing to a shape.
 
 **Depends on:** Part 2
 
@@ -67,5 +67,5 @@ Add the new endpoint to the existing monitoring configuration so the on-call das
 
 ## Open questions
 
-- Should the auth API probe use the auth API's own `/health`, or a cheap authenticated call? The discoverer left this to the researcher / planner.
+- Should the auth API probe use the auth API's own `/health`, or a cheap authenticated call? The discoverer left this to the ns-scout.
 - Is there an existing convention for status-string vocabulary (`ok` vs. `healthy` vs. `up`)? Researcher should match it.

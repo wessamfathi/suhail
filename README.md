@@ -2,7 +2,7 @@
 
 A generic, distributable plan-orchestration pipeline for [Claude Code](https://claude.com/claude-code).
 
-Northstar walks any structured plan file (markdown with `### Part N — Title` headings) to completion by dispatching specialized subagents — **ns-scout**, **ns-executer**, **ns-verifier** — through each Part. State persists across sessions. Progress is narrated. Blockers are surfaced as user-answerable questions. **After every Part, Northstar pauses for explicit user approval before advancing.**
+Northstar walks any structured plan file (markdown with `### Part N — Title` headings) to completion by dispatching specialized subagents — **ns-scout**, **ns-executer**, **ns-verifier** — through each Part. State persists across sessions. Progress is narrated. Blockers are surfaced as user-answerable questions. **By default (interactive mode), Northstar pauses for explicit user approval after every Part; `autorun` and `run-to` modes advance without pausing.**
 
 Northstar itself is domain-agnostic. It does not assume a language, framework, or stack — the **ns-scout** discovers conventions (CLAUDE.md / AGENTS.md / README / manifests) and surfaces them in `brief.md` so the rest of the pipeline can stay generic.
 
@@ -20,6 +20,17 @@ User-level (recommended — works across every repo):
 
 This copies the agents to `~/.claude/agents/` and the slash commands to `~/.claude/commands/`.
 
+Project-level (install into a specific repo's `.claude/`):
+
+```bash
+./scripts/install.sh --project /path/to/repo
+.\scripts\install.ps1 -Project C:\path\to\repo
+```
+
+Add `--gitignore` (POSIX) or `-Gitignore` (Windows) when using `--project` to also append `.northstar/` to that repo's `.gitignore`. Off by default.
+
+Add `--force` / `-Force` to overwrite existing files (default refuses and prints a diff).
+
 ## Initialize a project
 
 Before running `/ns` or `/ns-discover` against a project, scan it once:
@@ -31,17 +42,6 @@ Before running `/ns` or `/ns-discover` against a project, scan it once:
 `/ns-init` dispatches the `ns-indexer` subagent to read manifests, conventions docs (CLAUDE.md / AGENTS.md / README), and the directory tree, then caches the result under `.northstar/intel/` as four files: `stack.md`, `layout.md`, `conventions.md`, `modules.md`. Downstream agents read this cache as their baseline so per-Part research stays focused on what the Part actually touches.
 
 `/ns` and `/ns-discover` refuse to run until this intel exists. Re-run `/ns-init` (or `/ns-init refresh`) after stack changes, monorepo restructures, or major new modules.
-
-Project-level (install into a specific repo's `.claude/`):
-
-```bash
-./scripts/install.sh --project /path/to/repo
-.\scripts\install.ps1 -Project C:\path\to\repo
-```
-
-Add `--gitignore` (POSIX) or `-Gitignore` (Windows) when using `--project` to also append `.northstar/` to that repo's `.gitignore`. Off by default.
-
-Add `--force` / `-Force` to overwrite existing files (default refuses and prints a diff).
 
 ## Discover a plan
 
@@ -63,7 +63,7 @@ After install, in any repo:
 
 The first invocation parses the plan, creates `.northstar/state.json`, and asks you to confirm starting Part 1. Each subsequent `/ns` call advances state by one Part. Northstar narrates each subagent dispatch and pauses after every Part with a question:
 
-> Part 1 complete. Continue to Part 2? (Continue / Pause / Commit first / Show diff / Show review / Show audit)
+> Part 1 complete. Continue to Part 2? (Continue / Pause / Commit first / Show diff / Show review / Show audit / Run to end)
 
 Run the bundled self-test once after install to verify the toolchain:
 
@@ -83,7 +83,7 @@ Expected result: a `.northstar-smoketest.txt` file containing `northstar smoke o
 | `/ns` | Continue from current state. Advances by one Part per tick. |
 | `/ns-status` | Print the human-readable status dashboard (`.northstar/STATUS.md`). Read-only. |
 | `/ns-skip` | Mark the current Part `skipped` and advance to the next. |
-| `/ns retry` | Reset the current Part's retry counter and re-run from `researching`. |
+| `/ns retry` | Reset the current Part's retry counter and re-run from `scouting`. |
 | `/ns run-to <part-id>` | Auto-advance through Parts up to and including `<part-id>`. Pauses only on blockers; bypasses per-Part and ns-scout-approval pauses for the duration. |
 | `/ns-abort` | Set the run status to `aborted`. Does not delete artifacts. |
 | `/ns-discover [output-path]` | Interview the user and write a Northstar-format plan file. Delegates Phase 0 grounding to `ns-discover-scout` (haiku, read-only) and Phase 5 plan-writing to `ns-discover-planner` (sonnet). Independent of any active run; requires intel. |
@@ -173,4 +173,4 @@ MIT. See [`LICENSE`](LICENSE).
 
 ## Status
 
-Northstar v0.11.0. Telemetry: none. Issues and PRs welcome.
+Northstar v0.12.0. Telemetry: none. Issues and PRs welcome.

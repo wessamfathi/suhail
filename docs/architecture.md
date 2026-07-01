@@ -9,7 +9,7 @@ Northstar is a thin coordinator over three specialized roles. This document cove
 | **ns-indexer** | Read, Write, Glob, Grep, Bash | sonnet | `.northstar/intel/{stack,layout,conventions,modules}.md` — project-wide baseline cached once per project by `/ns-init` |
 | **ns-scout** | Read, Write, Glob, Grep | sonnet | `brief.md` — discovered stack conventions, files to touch, reusable helpers, gotchas, domain risks, and ordered step list |
 | **ns-executer** | Read, Edit, Write, Glob, Grep, Bash | sonnet | `execution.md` — file changes, command results, manual follow-ups |
-| **ns-verifier** | Read, Write, Glob, Grep, Bash | sonnet | `review.md` + `audit.md` — two-pass verdict and findings (review pass: correctness, regressions, convention drift; audit pass: security and compliance) |
+| **ns-verifier** | Read, Write, Glob, Grep, Bash | haiku (`claude-haiku-4-5-20251001`) | `review.md` + `audit.md` — two-pass verdict and findings (review pass: correctness, regressions, convention drift; audit pass: security and compliance) |
 | **ns-discover-scout** | Read, Glob, Grep | haiku (`claude-haiku-4-5-20251001`) | Structured context summary returned as response (no disk write) — Phase 0 grounding for `/ns-discover`. Dispatched exclusively by `/ns-discover`, not by the orchestrator. |
 | **ns-discover-planner** | Read, Write | sonnet | `.northstar/plans/<slug>.md` — Northstar-format plan file. Phase 5 plan-writing for `/ns-discover`. Dispatched exclusively by `/ns-discover`, not by the orchestrator. |
 
@@ -132,7 +132,7 @@ The orchestrator prompt is ~600 lines (10–15K tokens) and is injected into the
 
 What does NOT enter the top-level context:
 - Subagent prompts.
-- Subagent output bodies (research.md, plan.md, execution.md, review.md, audit.md). These live on disk under `.northstar/parts/<id>/` and the orchestrator reads them only when extracting structured fields (verdict, file list) — even then, only the relevant lines, not full file contents.
+- Subagent output bodies (brief.md, execution.md, review.md, audit.md). These live on disk under `.northstar/parts/<id>/` and the orchestrator reads them only when extracting structured fields (verdict, file list) — even then, only the relevant lines, not full file contents.
 - Diff patches.
 
 A 50-Part run accumulates roughly 5–10K tokens of narration plus the recurring ~15K orchestrator prompt — well within Claude Code's auto-compaction threshold. The trade-off relative to the original "orchestrator as subagent" idea: that design would have isolated even the narration into a separate context, so the top-level session would have seen only the final summary. With the slash-command-orchestrator design, you see the full per-Part narration in your session, which is actually useful for situational awareness — and the heavy artifact bodies still don't enter your context.
@@ -163,9 +163,9 @@ Northstar talks to the user in exactly these moments:
 | Trigger | Mechanism |
 |---|---|
 | INIT completed, ready to start | AskUserQuestion: start Part 1? |
-| Planner produced output (interactive mode) | AskUserQuestion: approve plan? |
+| Scout produced brief (interactive mode) | AskUserQuestion: approve plan? |
 | Subagent flagged a blocker | AskUserQuestion: pick a resolution option |
-| Reviewer/auditor exceeded retry budget | AskUserQuestion: skip / abort / fix manually |
+| Verifier exceeded retry budget | AskUserQuestion: skip / abort / fix manually |
 | Part completed (interactive mode) | AskUserQuestion: continue / pause / commit first |
 | Run-to safety cap (20 Parts unattended) | AskUserQuestion: continue / pause |
 | Run-to target reached | AskUserQuestion: continue interactively? |

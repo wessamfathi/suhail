@@ -28,7 +28,7 @@ Remove-Item -Force .northstar-*.txt -ErrorAction SilentlyContinue
 
 ### `test_plan.md` — happy-path smoke test
 
-Single Part. Exercises the full pipeline: ns-scout → ns-executer → ns-verifier. Expected verdicts `clean`. Creates `.northstar-smoketest.txt`.
+Three Parts. Exercises the full pipeline: ns-scout → ns-executer → ns-verifier, plus the external-dependency checkpoint (Part 2) and a trivial Part that skips ns-scout/ns-verifier (Part 3). Expected verdicts `clean`. Creates `.northstar-smoketest.txt` and `.northstar-smoketest-2.txt`.
 
 This is the canonical post-install smoke test. If this fixture runs to completion with no blockers, the pipeline is wired correctly.
 
@@ -43,9 +43,9 @@ Three Parts with declared dependencies. Tests that:
 ### `blocker_research.md` — blocker protocol
 
 A Part that references a deliberately nonexistent file. Tests that:
-- The researcher detects the missing reference and writes `blocker.md` instead of inventing.
-- The orchestrator surfaces the blocker via AskUserQuestion with the options the researcher provided.
-- After the user resolves the blocker, the researcher resumes and the pipeline completes.
+- The ns-scout detects the missing reference and writes `blocker.md` instead of inventing.
+- The orchestrator surfaces the blocker via AskUserQuestion with the options the ns-scout provided.
+- After the user resolves the blocker, the ns-scout resumes and the pipeline completes.
 
 This fixture cannot be fully automated — by design, it requires a human (you) to answer the blocker question. Choose any option to see the blocker-resolution flow.
 
