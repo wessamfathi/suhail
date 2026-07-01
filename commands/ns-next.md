@@ -6,7 +6,7 @@ description: Auto-advance the current Northstar run by exactly one logical step.
 
 You are advancing the current Northstar run by **exactly one logical step**. This command takes no arguments. It is a non-interactive shortcut for the user who wants to hit "next" without typing `/ns continue` or answering the inter-Part "Continue?" prompt.
 
-`/ns-next` does NOT initialize a run, does NOT loop (even in `run-to` mode), and does NOT resolve blockers. It only advances one tick of the orchestrator's state machine, with a single special case: when the current step is `awaiting_plan_approval`, it injects an implicit "Approve" so the run progresses to `executing` without re-prompting the user.
+`/ns-next` does NOT initialize a run, does NOT loop (even in `run-to` mode), and does NOT resolve blockers. It only advances one tick of the orchestrator's state machine, with two sanctioned special cases where it injects an implicit approval so the run progresses without re-prompting the user: when the current step is `awaiting_plan_approval` (per-Part), and when `run_phase == "master_plan_approval"` (batch checkpoint).
 
 ## On every invocation
 
@@ -20,7 +20,23 @@ Run the following guards in order, short-circuiting on the first match. Each ref
 
 ## Dispatch
 
-After the guards pass, branch on `current_step`:
+After the guards pass, first check `run_phase`. If `run_phase == "master_plan_approval"`, take the `master_plan_approval checkpoint` branch below. Otherwise, branch on `current_step`.
+
+### master_plan_approval checkpoint
+
+Inject the batch Approve-all resolution without presenting an AskUserQuestion. This mirrors the autorun guard at `ns.md:212` and the `Approve all` resolution at `ns.md:215` — it is the `/ns-next` equivalent of that same state mutation:
+
+1. Read `.northstar/state.json` into memory.
+2. Set `batch_auto_approve = true`.
+3. For every Part id listed in `current_batch`, set that Part's `status = "executing"`.
+4. Set `current_part_id` to the lowest-integer Part id in `current_batch` (parse the numeric suffix of each `part-N` id and take the minimum N).
+5. Set `run_phase = "executing"`.
+6. Update `updated_at` to the current ISO 8601 timestamp.
+7. Write the full state.json back (per the state-machine invariant: always write the full file from the in-memory model, never partial-update), via `northstar-write` using the same platform-detection logic as the `awaiting_plan_approval` branch below.
+8. Locate `ns.md` using the two-location lookup below, read it, and follow its instructions for **exactly one tick** as if the orchestrator had been invoked with empty arguments. With `current_part_id` now pointing at a Part whose `status = "executing"`, this tick dispatches the executer for that Part.
+9. After the single re-tick, end the turn. Do NOT loop further regardless of mode.
+
+This checkpoint is checked before the `current_step`-based branches below because at a batch checkpoint, `current_step` is a per-Part field that has not been advanced past its prior value and does not distinguish this state — `run_phase` is the authoritative signal here.
 
 ### awaiting_plan_approval
 
@@ -33,7 +49,7 @@ Inject an implicit "Approve" without presenting an AskUserQuestion to the user:
 5. Locate `ns.md` using the two-location lookup described below, read it, and follow its instructions for **exactly one tick** as if the orchestrator had been invoked with empty arguments. Since `current_step` is exactly `awaiting_plan_approval`, setting `auto_approve_planner = true` makes the orchestrator's plan-approval gate take its "Approve" branch automatically: set `current_step = "executing"`, then re-tick.
 6. After the single re-tick (which will dispatch the executer per the `executing` branch), end the turn. Do NOT loop further regardless of mode.
 
-This auto-approval intentionally bypasses the user's plan-review gate. Apply it only when `current_step` is exactly `awaiting_plan_approval` — never inject "Approve" for any other state.
+This auto-approval intentionally bypasses the user's plan-review gate. Apply it only when `current_step` is exactly `awaiting_plan_approval`; never inject "Approve" for any state outside the two sanctioned cases (this one, and the `master_plan_approval checkpoint` branch above).
 
 ### All other eligible states
 
@@ -62,5 +78,5 @@ Do not duplicate or summarize the orchestrator logic here. The canonical state m
 - Do not accept any arguments. This command is zero-argument; ignore `$ARGUMENTS` entirely.
 - Do not INIT a run. If `state.json` is absent, refuse per Guard 1 — never accept a plan path.
 - Do not resolve blockers, attempt retries, or mutate `blocker.md`. Refuse per Guard 3 and let the user route through `/ns`.
-- Do not inject "Approve" for any state other than `awaiting_plan_approval`.
-- Do not modify the state schema. The only field this command writes is `auto_approve_planner` (plus `updated_at`), and only in the `awaiting_plan_approval` branch.
+- Do not inject an implicit approval outside the two sanctioned cases: `current_step == "awaiting_plan_approval"` (per-Part) and `run_phase == "master_plan_approval"` (batch checkpoint).
+- Do not modify the state schema. The `awaiting_plan_approval` branch writes only `auto_approve_planner` and `updated_at`. The `master_plan_approval checkpoint` branch writes only `batch_auto_approve`, `run_phase`, the `status` of every Part in `current_batch`, `current_part_id`, and `updated_at`.

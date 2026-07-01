@@ -172,4 +172,4 @@ MIT. See [`LICENSE`](LICENSE).
 
 ## Status
 
-Northstar v0.12.0. Telemetry: none. Issues and PRs welcome.
+Northstar v0.13.0. Telemetry: none. Issues and PRs welcome.

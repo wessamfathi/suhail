@@ -14,6 +14,17 @@ All notable changes to Northstar are documented here. The format follows [Keep a
 - `install.ps1` parity with `install.sh`: added `-Help`, disabled positional binding so a bare positional path is rejected instead of silently binding to `-Project`, and aligned the STATUS.md artifact arrow glyph (`->` → `→`).
 - Repository prepared for public release: removed internal-only development artifacts, and removed internal-only `plans/`, `docs/script-extraction-candidates.md`, and `.claude/skills/` from the tree.
 
+## [0.13.0] — YYYY-MM-DD
+
+### Fixed
+- **Tick scripts synced to the batched state machine.** `scripts/northstar-tick.sh` / `.ps1` had drifted from the batched autorun/verification flow in `commands/ns.md`, breaking batch and autorun ticks; the scripts now match the current state machine.
+- **`Abort` option in `ns.md`'s interactive complete-handler made reachable.** The menu previously exceeded the 4-option cap, pushing `Abort` out of reach; the menu is now split so `Abort` is always selectable.
+- **`/ns-next` aligned with the batch `master_plan_approval` gate.** `commands/ns-next.md` now respects the same batch approval gate as the main orchestrator instead of bypassing it.
+- **`install.sh` header label corrected.** The script's header comment mislabeled itself `POSIX`; it now correctly reads `bash`.
+- **`northstar-read.sh` / `.ps1` parse parity.** The two scripts had diverged in how they parsed state; brought back in sync so both read the same fields the same way.
+- Dead `die1()` function removed from `scripts/northstar-clean.sh`.
+- `ns-` naming normalized in command prose (`ns-init.md`, `ns-discover.md`), and `fixtures/test_plan.md` fixture titles corrected.
+
 ## [0.12.0] — 2026-05-22
 
 ### Changed
