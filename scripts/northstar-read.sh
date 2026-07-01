@@ -29,7 +29,7 @@ PART_DIR=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help)
-      sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     -*)
@@ -76,7 +76,7 @@ extract_verdict() {
     return
   fi
   local verdict
-  verdict="$(grep -A1 '^## Verdict' "$file" | tail -1 | tr -d '[:space:]')"
+  verdict="$(awk '/^## Verdict/ { found=1; next } found { print; exit }' "$file" | tr -d '[:space:]')"
   if [[ -z "$verdict" ]]; then
     echo "null"
   else
@@ -117,7 +117,7 @@ extract_blocker() {
 
   # Extract lines between first pair of --- delimiters
   local frontmatter
-  frontmatter="$(awk 'NR>1 && /^---$/ { exit } NR>1 { print }' "$file")"
+  frontmatter="$(awk '/^---$/ { delim++; if (delim == 2) exit; next } delim == 1 { print }' "$file")"
 
   local from_raw severity_raw options_raw
 

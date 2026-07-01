@@ -1,6 +1,6 @@
 # Northstar Self-Test
 
-This plan is a no-op smoke test. Pointing Northstar at it should walk through ns-scout → ns-executer → ns-verifier cleanly, end-to-end, with no manual follow-ups.
+This plan is a no-op smoke test. Pointing Northstar at it should walk through ns-scout → ns-executer → ns-verifier end to end, with no manual follow-ups.
 
 Run after install with:
 
@@ -24,7 +24,7 @@ After verifying, you can:
 
 ## Smoke
 
-### Part 1 — Append marker line to a test file
+### Part 1 — Create marker file (overwrite if exists)
 
 Create a file at `.northstar-smoketest.txt` (in the current working directory) containing the single line `northstar smoke ok`. If the file already exists, overwrite it. The file should contain exactly that line followed by a single trailing newline.
 
@@ -34,7 +34,7 @@ Create a file at `.northstar-smoketest.txt` (in the current working directory) c
 - Manual: open `.northstar-smoketest.txt` and confirm contents.
 - Programmatic: the file's contents equal `northstar smoke ok\n`.
 
-### Part 2 — Append second marker line after external action
+### Part 2 — Create second marker file after external action
 
 Create a file at `.northstar-smoketest-2.txt` (in the current working directory) containing the single line `northstar smoke ok 2`. If the file already exists, overwrite it. The file should contain exactly that line followed by a single trailing newline.
 
