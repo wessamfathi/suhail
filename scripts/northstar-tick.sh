@@ -104,6 +104,70 @@ review_exists() {
 }
 
 # ---------------------------------------------------------------------------
+# batch helpers (execute/verify cycle for the current level's parts)
+# ---------------------------------------------------------------------------
+
+# batch_first <status> [<status> ...] — lowest-numbered part in current_batch
+# whose status is one of the given statuses. Empty current_batch falls back to
+# all parts (defensive).
+batch_first() {
+  local statuses
+  statuses="$(printf '%s\n' "$@" | jq -R . | jq -s .)"
+  jq -r --argjson sts "$statuses" '
+    (.current_batch // []) as $b
+    | .parts[]
+    | select(.status as $s | $sts | index($s))
+    | select(($b | length) == 0 or (.id as $id | $b | index($id)))
+    | .id
+    ' "$STATE_FILE" | head -1
+}
+
+# batch_directive — shared routing for the executing and batch_verifying phases.
+# Executers run serially; verification is dispatched once the whole batch has
+# executed; the batch completes once every part is terminal.
+batch_directive() {
+  if [[ "$aborted" == "true" ]]; then
+    printf '{"action":"aborted"}\n'
+    return
+  fi
+
+  local p
+  p="$(batch_first needs_user)"
+  if [[ -n "$p" ]]; then
+    printf '{"action":"needs_user","part_id":"%s"}\n' "$p"
+    return
+  fi
+
+  # Any part still needing execution (or a brief) — dispatch it, serially.
+  p="$(batch_first executing pending scouting)"
+  if [[ -n "$p" ]]; then
+    if brief_exists "$p"; then
+      printf '{"action":"dispatch_executer","part_id":"%s"}\n' "$p"
+    else
+      printf '{"action":"dispatch_scout","part_id":"%s"}\n' "$p"
+    fi
+    return
+  fi
+
+  # All executed, none pending verification-dispatch yet — verify the batch.
+  p="$(batch_first executed)"
+  if [[ -n "$p" ]]; then
+    printf '{"action":"start_batch_verifying"}\n'
+    return
+  fi
+
+  # Verifiers dispatched but results not yet processed by the orchestrator.
+  p="$(batch_first verifying)"
+  if [[ -n "$p" ]]; then
+    printf '{"action":"noop","reason":"verifiers in flight for batch"}\n'
+    return
+  fi
+
+  # Every batch part is completed or skipped — advance the level.
+  printf '{"action":"complete"}\n'
+}
+
+# ---------------------------------------------------------------------------
 # state-transition logic
 # ---------------------------------------------------------------------------
 
@@ -134,67 +198,9 @@ case "$run_phase" in
     printf '{"action":"await_approval","reason":"master_plan_approval"}\n'
     ;;
 
-  executing)
-    if [[ "$aborted" == "true" ]]; then
-      printf '{"action":"aborted"}\n'
-      exit 0
-    fi
-
-    if [[ -z "$current_part_id" || "$current_part_id" == "null" ]]; then
-      printf '{"action":"noop","reason":"no current_part_id in executing phase"}\n'
-      exit 0
-    fi
-
-    # Determine current_step from parts array
-    current_step="$(jq -r --arg pid "$current_part_id" '
-      .parts[] | select(.id == $pid) | .status
-      ' "$STATE_FILE")"
-
-    case "$current_step" in
-      pending|scouting)
-        if brief_exists "$current_part_id"; then
-          printf '{"action":"dispatch_executer","part_id":"%s"}\n' "$current_part_id"
-        else
-          printf '{"action":"dispatch_scout","part_id":"%s"}\n' "$current_part_id"
-        fi
-        ;;
-      executing)
-        if execution_exists "$current_part_id"; then
-          printf '{"action":"dispatch_verifier","part_id":"%s"}\n' "$current_part_id"
-        else
-          printf '{"action":"dispatch_executer","part_id":"%s"}\n' "$current_part_id"
-        fi
-        ;;
-      verifying)
-        if review_exists "$current_part_id"; then
-          printf '{"action":"advance_after_review","part_id":"%s"}\n' "$current_part_id"
-        else
-          printf '{"action":"dispatch_verifier","part_id":"%s"}\n' "$current_part_id"
-        fi
-        ;;
-      awaiting_plan_approval|awaiting_part_approval)
-        printf '{"action":"await_approval","part_id":"%s"}\n' "$current_part_id"
-        ;;
-      needs_user)
-        printf '{"action":"needs_user","part_id":"%s"}\n' "$current_part_id"
-        ;;
-      completed|skipped)
-        # Advance to next part
-        next_part="$(jq -r '
-          .parts[]
-          | select(.status == "pending" or .status == "scouting" or .status == "executing" or .status == "verifying")
-          | .id
-          ' "$STATE_FILE" | head -1)"
-        if [[ -z "$next_part" ]]; then
-          printf '{"action":"complete","reason":"all parts terminal"}\n'
-        else
-          printf '{"action":"advance_to_part","part_id":"%s"}\n' "$next_part"
-        fi
-        ;;
-      *)
-        printf '{"action":"noop","reason":"unrecognised part status: %s","part_id":"%s"}\n' "$current_step" "$current_part_id"
-        ;;
-    esac
+  executing|batch_verifying)
+    # Batched execute/verify cycle over the current level's parts.
+    batch_directive
     ;;
 
   verifying)
