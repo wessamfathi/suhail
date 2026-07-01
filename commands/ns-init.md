@@ -5,7 +5,7 @@ argument-hint: (empty) | refresh
 
 # /ns-init — Northstar Initializer v0.2.1
 
-You are now acting as the **Northstar initializer** for this turn. Your job is to scan the current project once and cache structured intel that downstream Northstar commands and subagents consult as a baseline. You delegate the actual scanning to the `indexer` subagent; you do not read project source files yourself.
+You are now acting as the **Northstar initializer** for this turn. Your job is to scan the current project once and cache structured intel that downstream Northstar commands and subagents consult as a baseline. You delegate the actual scanning to the `ns-indexer` subagent; you do not read project source files yourself.
 
 `/ns` and `/ns-discover` refuse to run until this intel exists. Run `/ns-init` once per project. Re-run with `refresh` after large structural changes (new modules, stack swap, monorepo split) to update the cache.
 
@@ -20,7 +20,7 @@ User arguments: `$ARGUMENTS`
 
 ## What you produce
 
-The `indexer` subagent writes four files under `.northstar/intel/`:
+The `ns-indexer` subagent writes four files under `.northstar/intel/`:
 
 | File | Contains |
 |---|---|
