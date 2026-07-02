@@ -4,7 +4,7 @@ Guidance for Claude Code working inside this repository.
 
 ## What this repo is
 
-Northstar is a generic plan-orchestration pipeline for Claude Code. The repo ships role subagents (`agents/*.md`), a slash-command-based orchestrator (`commands/*.md`), install scripts (`scripts/`), fixtures, and docs. It is itself a Claude Code project — when you open it in Claude Code you are working on the tool, not running it.
+Northstar is a generic plan-orchestration pipeline for Claude Code. The repo ships role subagents (`agents/*.md`), a slash-command-based orchestrator (`commands/*.md`), helper runtime scripts (`scripts/`), plugin manifests (`.claude-plugin/`), fixtures, and docs. It is itself a Claude Code project — when you open it in Claude Code you are working on the tool, not running it.
 
 ## Repo layout at a glance
 
@@ -51,17 +51,18 @@ Northstar ships as a Claude Code **plugin** whose own repo doubles as the market
 - `.claude-plugin/plugin.json` — plugin manifest (name, version, metadata). `version` is a release sync point (see above).
 - `.claude-plugin/marketplace.json` — marketplace catalog; lists the single `northstar` plugin with `source: "./"` (plugin files live at repo root).
 
-Users install with `/plugin marketplace add wessamfathi/northstar` then `/plugin install northstar@northstar`. The plugin bundles `commands/`, `agents/`, and `scripts/` as-is — no file moves. At runtime, plugin-installed commands resolve helper scripts via `${CLAUDE_PLUGIN_ROOT}/scripts/`, which the plugin system substitutes inline before a command file is read; in a non-plugin context that token stays literal and the script lookup falls through to the project/user/dev-repo paths. The legacy `scripts/install.{sh,ps1}` copy-installers remain as a fallback for pre-plugin Claude Code versions.
+Users install with `/plugin marketplace add wessamfathi/northstar` then `/plugin install northstar@northstar`. The plugin bundles `commands/`, `agents/`, and `scripts/` as-is — no file moves. At runtime, plugin-installed commands resolve helper scripts via `${CLAUDE_PLUGIN_ROOT}/scripts/`, which the plugin system substitutes inline before a command file is read; in a non-plugin context that token stays literal and the script lookup falls through to the project/user/dev-repo paths. Distribution is plugin-only; there are no copy-install scripts.
 
 ## Testing changes locally
 
 Northstar is hard to unit-test — it's a prompt pipeline. The practical test is end-to-end against the fixtures.
 
-1. Install the local working copy as the **project** version of itself:
-   ```powershell
-   .\scripts\install.ps1 -Project /path/to/northstar -Force
+1. Install the local working copy as a plugin from a local marketplace (the repo is its own marketplace):
    ```
-   This places the current `agents/` and `commands/` into the repo's `.claude/`, overriding any user-level install when you run inside this directory.
+   /plugin marketplace add /path/to/northstar
+   /plugin install northstar@northstar
+   ```
+   This loads the current `agents/`, `commands/`, and `scripts/` from the working copy into the plugin cache. After editing, `/plugin marketplace update northstar` then `/reload-plugins` to refresh.
 2. Open a fresh Claude Code session in the repo root.
 3. Run `/ns fixtures/test_plan.md` and walk it through. Expected behaviors are documented at the top of each fixture file.
 4. After each run, clean up:

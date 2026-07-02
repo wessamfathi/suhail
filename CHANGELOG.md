@@ -2,6 +2,11 @@
 
 All notable changes to Northstar are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] — 2026-07-02
+
+### Removed
+- **Copy-install scripts deleted.** `scripts/install.sh` and `scripts/install.ps1` are gone; distribution is plugin-only (`/plugin marketplace add wessamfathi/northstar` → `/plugin install northstar@northstar`). All references scrubbed from `README.md`, `CONTRIBUTING.md`, `CLAUDE.md`, `docs/extending.md`, and `docs/architecture.md`. The local-dev flow now installs the working copy as a plugin from a local marketplace. Decision recorded in `docs/decisions.md` (supersedes the 2026-05-14 install-scope decision). Drops support for pre-plugin Claude Code versions; the manual project/user-copy lookup steps in `commands/ns.md` remain for hand-copied installs.
+
 ## [0.14.0] — 2026-07-02
 
 ### Added

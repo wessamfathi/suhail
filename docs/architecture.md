@@ -77,9 +77,9 @@ State writes and STATUS.md rendering are delegated to `northstar-write` (see `##
 
 ## Orchestrator IO scripts
 
-Two shell scripts (`northstar-read.{ps1,sh}` and `northstar-write.{ps1,sh}`) handle the mechanical I/O operations that would otherwise require the orchestrator to manage file handles, atomic writes, and template rendering inline. The install scripts copy both pairs into `commands/scripts/`.
+Two shell scripts (`northstar-read.{ps1,sh}` and `northstar-write.{ps1,sh}`) handle the mechanical I/O operations that would otherwise require the orchestrator to manage file handles, atomic writes, and template rendering inline. Both pairs ship in the plugin's `scripts/` directory.
 
-At runtime the orchestrator resolves the scripts directory using a three-step lookup before the first invocation: (1) `./.claude/commands/scripts/` (project install); (2) `$CLAUDE_CONFIG_DIR/commands/scripts/` if `CLAUDE_CONFIG_DIR` is set, otherwise `~/.claude/commands/scripts/` (global/user install); (3) `./scripts/` as a dev-repo fallback for running `/ns` directly inside the Northstar source repo. The authoritative definition of this lookup is in the `## Script-path resolution` section of `commands/ns.md`.
+At runtime the orchestrator resolves the scripts directory using a four-step lookup before the first invocation: (1) `${CLAUDE_PLUGIN_ROOT}/scripts/` (plugin install — the token is substituted inline when plugin-installed, and left literal otherwise so it falls through); (2) `./.claude/commands/scripts/` (manual project copy); (3) `$CLAUDE_CONFIG_DIR/commands/scripts/` if `CLAUDE_CONFIG_DIR` is set, otherwise `~/.claude/commands/scripts/` (manual user copy); (4) `./scripts/` as a dev-repo fallback for running `/ns` directly inside the Northstar source repo. The authoritative definition of this lookup is in the `## Script-path resolution` section of `commands/ns.md`.
 
 **`northstar-read`** reads a part directory (`.northstar/parts/<id>/`) and returns a structured JSON summary of the artifacts present — brief.md, execution.md, review.md, audit.md, blocker.md. The orchestrator calls it after subagent dispatch to extract verdict fields and file lists without reading full artifact bodies into its own context.
 
