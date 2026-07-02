@@ -2,6 +2,15 @@
 
 All notable changes to Northstar are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] — 2026-07-02
+
+### Added
+- **Claude Code plugin distribution.** The repo is now its own plugin marketplace. `.claude-plugin/plugin.json` (plugin manifest) and `.claude-plugin/marketplace.json` (catalog) let users install with `/plugin marketplace add wessamfathi/northstar` then `/plugin install northstar@northstar`. The plugin bundles `commands/`, `agents/`, and `scripts/` as-is; the script installers (`scripts/install.{sh,ps1}`) remain as a fallback for pre-plugin Claude Code versions.
+
+### Changed
+- **Script-path resolution gained a plugin-aware first step.** `commands/ns.md`, `commands/ns-abort.md`, and `commands/ns-skip.md` now check `${CLAUDE_PLUGIN_ROOT}/scripts/` first (and `ns-skip.md` checks `${CLAUDE_PLUGIN_ROOT}/commands/ns.md` for the orchestrator locator). The plugin system substitutes the token inline before a command file is read; in non-plugin contexts it stays literal and resolution falls through to the existing project/user/dev-repo paths, so behavior is unchanged for script-installed and dev-repo setups.
+- **`.claude-plugin/plugin.json` `version` added as a fourth release sync point** (`CLAUDE.md` § "Version bumps", `CONTRIBUTING.md` § "Releasing").
+
 ## [0.13.0] — 2026-07-01
 
 ### Fixed

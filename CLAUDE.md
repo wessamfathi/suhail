@@ -35,13 +35,23 @@ LICENSE                # MIT.
 
 ## Version bumps
 
-`tool_version` appears in two places inside `commands/ns.md` plus two other files — keep all in sync on every release:
+`tool_version` appears in two places inside `commands/ns.md` plus three other files — keep all in sync on every release:
 
 1. `commands/ns.md` — heading (`# /ns — Northstar vX.Y.Z`) and the `tool_version` field inside the state schema block. These are the only two sync points in `commands/ns.md`. The write scripts (`scripts/northstar-write.{ps1,sh}`) render `tool_version` from `state.tool_version` at runtime and do not hardcode a version string — no separate edit needed there.
 2. `README.md` — the footer line "Northstar vX.Y.Z. Telemetry: none."
 3. `CHANGELOG.md` — new section header `## [X.Y.Z] — YYYY-MM-DD`.
+4. `.claude-plugin/plugin.json` — the `version` field. This is the version the plugin marketplace reports; keep it identical to the others.
 
 After bumping: `git tag vX.Y.Z` and push.
+
+## Plugin distribution
+
+Northstar ships as a Claude Code **plugin** whose own repo doubles as the marketplace catalog:
+
+- `.claude-plugin/plugin.json` — plugin manifest (name, version, metadata). `version` is a release sync point (see above).
+- `.claude-plugin/marketplace.json` — marketplace catalog; lists the single `northstar` plugin with `source: "./"` (plugin files live at repo root).
+
+Users install with `/plugin marketplace add wessamfathi/northstar` then `/plugin install northstar@northstar`. The plugin bundles `commands/`, `agents/`, and `scripts/` as-is — no file moves. At runtime, plugin-installed commands resolve helper scripts via `${CLAUDE_PLUGIN_ROOT}/scripts/`, which the plugin system substitutes inline before a command file is read; in a non-plugin context that token stays literal and the script lookup falls through to the project/user/dev-repo paths. The legacy `scripts/install.{sh,ps1}` copy-installers remain as a fallback for pre-plugin Claude Code versions.
 
 ## Testing changes locally
 

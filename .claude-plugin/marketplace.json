@@ -1,0 +1,14 @@
+{
+  "name": "northstar",
+  "owner": { "name": "wessamfathi", "email": "wessam@lana.games" },
+  "description": "Northstar plan-orchestration pipeline for Claude Code.",
+  "plugins": [
+    {
+      "name": "northstar",
+      "source": "./",
+      "description": "Scout/executer/verifier plan pipeline with state persistence and per-Part pauses.",
+      "category": "workflow",
+      "license": "MIT"
+    }
+  ]
+}

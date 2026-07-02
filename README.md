@@ -8,7 +8,22 @@ Northstar itself is domain-agnostic. It does not assume a language, framework, o
 
 ## Install
 
-User-level (recommended, works across every repo):
+### Plugin (recommended)
+
+Northstar's repo is its own plugin marketplace. Install with two commands inside Claude Code:
+
+```
+/plugin marketplace add wessamfathi/northstar
+/plugin install northstar@northstar
+```
+
+This pulls the commands, agents, and helper scripts as a versioned plugin — no manual file copying, and `/plugin` handles updates. `northstar@northstar` reads as "the `northstar` plugin from the `northstar` marketplace".
+
+### Script installer (fallback)
+
+For Claude Code versions without plugin support, the copy-installers still work.
+
+User-level (works across every repo):
 
 ```bash
 # POSIX
@@ -172,4 +187,4 @@ MIT. See [`LICENSE`](LICENSE).
 
 ## Status
 
-Northstar v0.13.0. Telemetry: none. Issues and PRs welcome.
+Northstar v0.14.0. Telemetry: none. Issues and PRs welcome.
