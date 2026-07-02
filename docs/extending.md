@@ -51,9 +51,9 @@ Identical shape to `verifying` with subagent_type="performance-auditor" and outp
 
 Update the status enum doc string to include the new phase.
 
-### 3. Update the install script
+### 3. Packaging
 
-The install script picks up everything in `agents/*.md` automatically — no edit needed.
+No packaging edit needed — the plugin bundles everything in `agents/*.md` (and `commands/`, `scripts/`) automatically.
 
 ### 4. Update STATUS.md generation
 

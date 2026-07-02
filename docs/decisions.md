@@ -159,3 +159,15 @@ This also means a run can be aborted at any time without contaminating the user'
 **Decided:** MIT license. No telemetry. v1 commitment.
 
 **Why:** Northstar is a thin coordinator running locally in Claude Code. Telemetry adds privacy concerns, network dependencies, and trust friction for a tool that's supposed to be inspectable. The whole point of the artifacts-on-disk design is "you can see everything Northstar is doing"; adding a phone-home would contradict that.
+
+---
+
+## 2026-07-02 — Plugin-only distribution (supersedes 2026-05-14 install-script decision)
+
+**Decided:** Northstar distributes solely as a Claude Code plugin. The repo doubles as its own marketplace (`.claude-plugin/marketplace.json` + `plugin.json`). Install is `/plugin marketplace add wessamfathi/northstar` then `/plugin install northstar@northstar`. The `scripts/install.{sh,ps1}` copy-installers were removed.
+
+**Why:** the plugin model is native, versioned, self-updating, and requires no file-copy logic to maintain across POSIX/PowerShell. It bundles `commands/`, `agents/`, and `scripts/` as-is and exposes them via `${CLAUDE_PLUGIN_ROOT}`, which the script-path lookup checks first. The two installers were duplicated maintenance surface (two shells, `--project`/`--force`/`--gitignore` flags, stale-file cleanup) that the plugin system now handles.
+
+**What this supersedes:** the 2026-05-14 "User-level install by default, project-level optional" decision — there are no install scripts to have a default scope. The `.gitignore` auto-edit convenience is also gone; users add `.northstar/` to their target repo's `.gitignore` manually (README documents this).
+
+**Trade-off:** drops support for Claude Code versions without plugin support. Acceptable — plugin support is broadly available, and the manual project/user-copy lookup steps remain in `commands/ns.md` for anyone who copies the files by hand.

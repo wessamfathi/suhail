@@ -8,8 +8,6 @@ Northstar itself is domain-agnostic. It does not assume a language, framework, o
 
 ## Install
 
-### Plugin (recommended)
-
 Northstar's repo is its own plugin marketplace. Install with two commands inside Claude Code:
 
 ```
@@ -19,32 +17,7 @@ Northstar's repo is its own plugin marketplace. Install with two commands inside
 
 This pulls the commands, agents, and helper scripts as a versioned plugin — no manual file copying, and `/plugin` handles updates. `northstar@northstar` reads as "the `northstar` plugin from the `northstar` marketplace".
 
-### Script installer (fallback)
-
-For Claude Code versions without plugin support, the copy-installers still work.
-
-User-level (works across every repo):
-
-```bash
-# POSIX
-./scripts/install.sh
-
-# Windows
-.\scripts\install.ps1
-```
-
-This copies the agents to `~/.claude/agents/` and the slash commands to `~/.claude/commands/`.
-
-Project-level (install into a specific repo's `.claude/`):
-
-```bash
-./scripts/install.sh --project /path/to/repo
-.\scripts\install.ps1 -Project C:\path\to\repo
-```
-
-Add `--gitignore` (POSIX) or `-Gitignore` (Windows) when using `--project` to also append `.northstar/` to that repo's `.gitignore`. Off by default.
-
-Add `--force` / `-Force` to overwrite existing files (default refuses and prints a diff).
+Requires a Claude Code version with plugin support. Once installed, add `.northstar/` to any target repo's `.gitignore` (Northstar writes its run state there).
 
 ## Initialize a project
 
@@ -153,7 +126,7 @@ When Northstar is operating on a target repo, it writes here:
         └── blocker.md              # only if open
 ```
 
-Add `.northstar/` to your target repo's `.gitignore`. The install script will do this for you if you pass `--gitignore` with `--project`.
+Add `.northstar/` to your target repo's `.gitignore`.
 
 ## Safety
 
@@ -187,4 +160,4 @@ MIT. See [`LICENSE`](LICENSE).
 
 ## Status
 
-Northstar v0.14.0. Telemetry: none. Issues and PRs welcome.
+Northstar v0.15.0. Telemetry: none. Issues and PRs welcome.

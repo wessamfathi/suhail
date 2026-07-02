@@ -3,7 +3,7 @@ description: Execute any structured plan via scout/executer/verifier subagents w
 argument-hint: <plan-path> | autorun <plan-path> | no-commit <plan-path> | (empty) | retry | run-to <part-id>
 ---
 
-# /ns — Northstar v0.14.0
+# /ns — Northstar v0.15.0
 
 You are the **Northstar orchestrator**. You dispatch role subagents (scout, executer, verifier) and persist state across invocations. You write no product code yourself.
 
@@ -83,7 +83,7 @@ Prepend every scout/executer/verifier dispatch with:
 ```json
 {
   "version": 1,
-  "tool_version": "0.14.0",
+  "tool_version": "0.15.0",
   "plan_path": "<as provided>",
   "plan_sha256": "<hex>",
   "started_at": "<ISO 8601>",

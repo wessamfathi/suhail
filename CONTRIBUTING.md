@@ -1,6 +1,6 @@
 # Contributing to Northstar
 
-Thanks for considering a contribution. Northstar is a small project (markdown files, two install scripts, no runtime), so most contributions are short and focused.
+Thanks for considering a contribution. Northstar is a small project (markdown files, a handful of helper shell scripts, no runtime), so most contributions are short and focused.
 
 ## Ground rules
 
@@ -15,15 +15,23 @@ You'll need [Claude Code](https://claude.com/claude-code) installed to run the p
 
 Clone the repo.
 
-To work on Northstar with Northstar (recommended, you'll catch contract regressions immediately):
+To work on Northstar with Northstar (recommended, you'll catch contract regressions immediately), install your local checkout as a plugin from a local marketplace:
 
-```powershell
-# Install the working copy as the project-level Northstar for the repo itself.
-.\scripts\install.ps1 -Project C:\path\to\northstar -Force
-# (POSIX: ./scripts/install.sh --project /path/to/northstar --force)
+```
+/plugin marketplace add /path/to/northstar
+/plugin install northstar@northstar
 ```
 
-Now opening a Claude Code session inside the repo picks up your in-progress changes via the project-level `.claude/agents/` and `.claude/commands/`.
+The repo doubles as its own marketplace (`.claude-plugin/marketplace.json`), so this installs the working copy — commands, agents, and `scripts/` — into the plugin cache. Because runtime scripts then resolve via `${CLAUDE_PLUGIN_ROOT}/scripts/` (a frozen copy), an in-flight run is never disturbed by edits to your working tree.
+
+After editing any command, agent, or script, refresh the installed copy:
+
+```
+/plugin marketplace update northstar
+/reload-plugins
+```
+
+(Re-install if a refresh doesn't pick up the change.)
 
 ## Testing a change
 
