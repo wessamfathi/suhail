@@ -72,7 +72,7 @@ A few repo conventions aren't obvious from the files themselves; see `CLAUDE.md`
 ## Releasing
 
 1. Move `## [Unreleased]` notes into a new `## [X.Y.Z] — YYYY-MM-DD` section in `CHANGELOG.md`.
-2. Bump the version at its other sync points (see CLAUDE.md § "Version bumps"): two spots in `commands/ns.md` (the `# /ns — Northstar vX.Y.Z` heading and the `tool_version` state field) plus the `README.md` footer line.
+2. Bump the version at its other sync points (see CLAUDE.md § "Version bumps"): two spots in `commands/ns.md` (the `# /ns — Northstar vX.Y.Z` heading and the `tool_version` state field), the `README.md` footer line, and the `version` field in `.claude-plugin/plugin.json`.
 3. Run every fixture one more time.
 4. Commit with message `release: vX.Y.Z`.
 5. Tag: `git tag vX.Y.Z`.

@@ -21,7 +21,7 @@ After the guards pass:
 1. Read `.northstar/state.json` into memory (the full object).
 2. Set the Part whose `id == current_part_id` to `status: "skipped"`. Leave `current_part_id` pointing at it — the tick script's `skipped` branch selects the next eligible Part on the next tick (`advance_to_part`), so you do not compute the next Part yourself.
 3. Update `updated_at` to the current ISO 8601 timestamp.
-4. Resolve the scripts directory using the following three-step lookup (check each in order; use the first that exists): (1) `./.claude/commands/scripts/`; (2) `$CLAUDE_CONFIG_DIR/commands/scripts/` if the environment variable `CLAUDE_CONFIG_DIR` is set and non-empty, otherwise `~/.claude/commands/scripts/`; (3) `./scripts/` (dev-repo fallback). If none exist, end with: "Helper scripts not found — install Northstar or run from the dev repo." Pipe the **complete** updated state JSON to `northstar-write` (platform-detected: `pwsh <resolved-scripts-dir>/northstar-write.ps1 .northstar/state.json` on Windows; `bash <resolved-scripts-dir>/northstar-write.sh .northstar/state.json` on POSIX) with the full JSON on stdin. Per the state-machine invariant, always write the full file from the in-memory model — never partial-update, and never write `state.json` directly. On non-zero exit: write `.northstar/parts/<current_part_id>/blocker.md` (`from: orchestrator`) and end the turn.
+4. Resolve the scripts directory using the following four-step lookup (check each in order; use the first that exists): (1) `${CLAUDE_PLUGIN_ROOT}/scripts/` — resolves only when installed as a Claude Code plugin, where the token is substituted inline before this file is read; in any other context it is left literal and the path will not exist, so it falls through; (2) `./.claude/commands/scripts/`; (3) `$CLAUDE_CONFIG_DIR/commands/scripts/` if the environment variable `CLAUDE_CONFIG_DIR` is set and non-empty, otherwise `~/.claude/commands/scripts/`; (4) `./scripts/` (dev-repo fallback). If none exist, end with: "Helper scripts not found — install Northstar or run from the dev repo." Pipe the **complete** updated state JSON to `northstar-write` (platform-detected: `pwsh <resolved-scripts-dir>/northstar-write.ps1 .northstar/state.json` on Windows; `bash <resolved-scripts-dir>/northstar-write.sh .northstar/state.json` on POSIX) with the full JSON on stdin. Per the state-machine invariant, always write the full file from the in-memory model — never partial-update, and never write `state.json` directly. On non-zero exit: write `.northstar/parts/<current_part_id>/blocker.md` (`from: orchestrator`) and end the turn.
 5. Narrate one sentence: "🧭 Orchestrator — Part N skipped."
 6. AskUserQuestion: "Part N skipped. Advance to the next eligible Part now?" with options `Continue` / `Pause`.
    - **Continue** → locate `ns.md` (see below), read it, and follow its instructions for **exactly one tick** as if the user had typed `/ns continue`. The orchestrator's tick will resolve `advance_to_part` and dispatch the next Part. Do not loop beyond what the orchestrator does for a single `/ns continue`.
@@ -31,8 +31,9 @@ After the guards pass:
 
 Check these paths in order:
 
-1. The same directory as this command file (sibling): project install `<repo>/.claude/commands/ns.md`; user install `~/.claude/commands/ns.md`.
-2. If neither path is found, end with: "Cannot locate `ns.md` — reinstall Northstar."
+1. Plugin install: `${CLAUDE_PLUGIN_ROOT}/commands/ns.md` — resolves only when installed as a Claude Code plugin (token substituted inline before this file is read); otherwise the token is left literal and the path will not exist, so it falls through.
+2. The same directory as this command file (sibling): project install `<repo>/.claude/commands/ns.md`; user install `~/.claude/commands/ns.md`.
+3. If neither path is found, end with: "Cannot locate `ns.md` — reinstall Northstar."
 
 Do not duplicate or summarize the orchestrator logic here. The canonical state machine lives in `ns.md`.
 

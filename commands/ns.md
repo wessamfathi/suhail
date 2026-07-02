@@ -3,7 +3,7 @@ description: Execute any structured plan via scout/executer/verifier subagents w
 argument-hint: <plan-path> | autorun <plan-path> | no-commit <plan-path> | (empty) | retry | run-to <part-id>
 ---
 
-# /ns — Northstar v0.13.0
+# /ns — Northstar v0.14.0
 
 You are the **Northstar orchestrator**. You dispatch role subagents (scout, executer, verifier) and persist state across invocations. You write no product code yourself.
 
@@ -83,7 +83,7 @@ Prepend every scout/executer/verifier dispatch with:
 ```json
 {
   "version": 1,
-  "tool_version": "0.13.0",
+  "tool_version": "0.14.0",
   "plan_path": "<as provided>",
   "plan_sha256": "<hex>",
   "started_at": "<ISO 8601>",
@@ -151,11 +151,12 @@ Before invoking any helper script (`northstar-write`, `northstar-read`, `northst
 
 Resolution order:
 
-1. **Project install:** check whether `./.claude/commands/scripts/` exists in the current working directory. If it does, use it as `$scripts_dir`.
-2. **User install:** if step 1 did not match, check `$CLAUDE_CONFIG_DIR/commands/scripts/` — but only if the environment variable `CLAUDE_CONFIG_DIR` is set and non-empty. If `CLAUDE_CONFIG_DIR` is not set, check `~/.claude/commands/scripts/` instead. If the resolved path exists, use it as `$scripts_dir`.
-3. **Dev-repo fallback:** if neither step 1 nor step 2 matched, use `./scripts/` as `$scripts_dir`. This path is the canonical developer-repository location and ensures that running `/ns` directly inside the Northstar source repo (e.g., against `fixtures/`) works without an install step.
+1. **Plugin install:** check whether `${CLAUDE_PLUGIN_ROOT}/scripts/` exists. When Northstar is installed as a Claude Code plugin, `${CLAUDE_PLUGIN_ROOT}` is substituted inline with the plugin's install directory before this file is read, so this resolves to a real path. In any non-plugin context the token is left literal (unsubstituted) and the path will not exist, so resolution falls through to the next step. If it exists, use it as `$scripts_dir`.
+2. **Project install:** if step 1 did not match, check whether `./.claude/commands/scripts/` exists in the current working directory. If it does, use it as `$scripts_dir`.
+3. **User install:** if steps 1–2 did not match, check `$CLAUDE_CONFIG_DIR/commands/scripts/` — but only if the environment variable `CLAUDE_CONFIG_DIR` is set and non-empty. If `CLAUDE_CONFIG_DIR` is not set, check `~/.claude/commands/scripts/` instead. If the resolved path exists, use it as `$scripts_dir`.
+4. **Dev-repo fallback:** if none of steps 1–3 matched, use `./scripts/` as `$scripts_dir`. This path is the canonical developer-repository location and ensures that running `/ns` directly inside the Northstar source repo (e.g., against `fixtures/`) works without an install step.
 
-If none of the three paths exist, write `blocker.md` (`from: orchestrator`) with the message "Helper scripts not found — install Northstar or run from the dev repo." and end the turn.
+If none of the four paths exist, write `blocker.md` (`from: orchestrator`) with the message "Helper scripts not found — install Northstar or run from the dev repo." and end the turn.
 
 Once resolved, invoke scripts as:
 
