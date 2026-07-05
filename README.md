@@ -2,9 +2,19 @@
 
 A generic, distributable plan-orchestration pipeline for [Claude Code](https://claude.com/claude-code).
 
-Northstar walks any structured plan file (markdown with `### Part N — Title` headings) to completion by dispatching specialized subagents (ns-scout, ns-executer, ns-verifier) through each Part. State persists across sessions. Progress is narrated. Blockers are surfaced as user-answerable questions. **By default (interactive mode), Northstar pauses for explicit user approval after every Part; `autorun` and `run-to` modes advance without pausing.**
+Northstar walks any structured plan file (markdown with `### Part N — Title` headings) to completion by dispatching specialized subagents (ns-scout, ns-executer, ns-verifier) through each Part. State persists across sessions, the orchestrator narrates its progress, and blockers come back to you as multiple-choice questions. **By default (interactive mode), Northstar pauses for explicit user approval after every Part; `/ns-auto` mode advances without pausing.**
 
 Northstar itself is domain-agnostic. It does not assume a language, framework, or stack. The ns-scout discovers conventions (CLAUDE.md / AGENTS.md / README / manifests) and surfaces them in `brief.md` so the rest of the pipeline can stay generic.
+
+## Design
+
+- **Files-as-IPC.** All subagent communication happens through files in `.northstar/parts/<id>/`. The orchestrator's prompt context never bloats with subagent output bodies.
+- **Single state.json + regenerated STATUS.md.** Atomic writes, one place to scan, plus a human-readable dashboard.
+- **One Part per tick.** Hard pause at Part boundaries. Retry loops inside a Part happen within a single tick.
+- **Stack-agnostic agents.** Project context is discovered by the ns-scout at runtime and surfaced to the rest of the pipeline through `brief.md`.
+- **Domain risks via a single channel.** Ns-verifier's audit pass inherits project-specific concerns only if the ns-scout surfaces them. The ns-verifier's prompt itself contains no domain knowledge.
+
+See [`docs/architecture.md`](docs/architecture.md) for the full design write-up, [`docs/decisions.md`](docs/decisions.md) for the rationale behind each major design choice, and [`docs/extending.md`](docs/extending.md) for how to add a new subagent role.
 
 ## Install
 
@@ -15,13 +25,11 @@ Northstar's repo is its own plugin marketplace. Install with two commands inside
 /plugin install northstar@northstar
 ```
 
-This pulls the commands, agents, and helper scripts as a versioned plugin — no manual file copying, and `/plugin` handles updates. `northstar@northstar` reads as "the `northstar` plugin from the `northstar` marketplace".
-
-Requires a Claude Code version with plugin support. Once installed, add `.northstar/` to any target repo's `.gitignore` (Northstar writes its run state there).
+This pulls the commands, agents, and helper scripts as a versioned plugin, so there is nothing to copy by hand and `/plugin` handles updates. Once installed, add `.northstar/` to any target repo's `.gitignore` (Northstar writes its run state there).
 
 ## Initialize a project
 
-Before running `/ns` or `/ns-discover` against a project, scan it once:
+After installing Northstar (user- or project-scope), open your project folder and scan it once:
 
 ```
 /ns-init
@@ -33,7 +41,7 @@ Before running `/ns` or `/ns-discover` against a project, scan it once:
 
 ## Discover a plan
 
-Don't have a plan file yet? Let Northstar interview you and draft one:
+Northstar can interview you and draft a plan to achieve your goals:
 
 ```
 /ns-discover
@@ -86,7 +94,7 @@ ns-scout → (user approval) → ns-executer → ns-verifier → completed → (
 
 Each subagent reads its inputs from disk and writes its output to a known path inside `.northstar/parts/<part-id>/`. The orchestrator passes paths in prompts and never relays artifact bodies, so its own context stays small no matter how large the plan grows.
 
-If the ns-verifier reports a `[blocker]` finding, the orchestrator re-dispatches the ns-executer with the findings attached. Up to three attempts per Part by default; on exhaustion, control returns to the user.
+If the ns-verifier reports a `[blocker]` finding, the orchestrator re-dispatches the ns-executer with the findings attached. Up to three attempts per Part by default; after that, the orchestrator hands control back to you.
 
 If any subagent encounters something it cannot resolve (missing file, ambiguous spec, unreachable service), it writes a `blocker.md` with options and the orchestrator surfaces it to the user as a multiple-choice question.
 
@@ -130,8 +138,8 @@ Add `.northstar/` to your target repo's `.gitignore`.
 
 ## Safety
 
-- The **ns-executer never commits**. It also never deploys. Deploys are flagged as "Manual follow-ups required" in `execution.md` for you to run.
-- **Atomic per-Part commits (on by default).** After a Part is verified clean, the orchestrator creates one git commit containing only that Part's changed files, so history is reviewable, pushable, and revertable Part-by-Part. Skipped Parts and non-git directories are never committed. The orchestrator never pushes, deploys, amends, or force-pushes. Disable for a run with `no-commit` (e.g. `/ns no-commit <plan>` or `/ns autorun no-commit <plan>`); with auto-commit off, the interactive "Commit first" option still lets you commit on demand.
+- The **ns-executer never pushes or deploys**. It flags deploys under "Manual follow-ups required" in `execution.md` for you to run.
+- **Atomic per-Part commits (on by default).** After a Part is verified clean, the orchestrator creates one git commit containing only that Part's changed files, so you can review, push, or revert each Part's commit on its own. Skipped Parts and non-git directories are never committed. The orchestrator never pushes, deploys, amends, or force-pushes. Disable for a run with `no-commit` (e.g. `/ns no-commit <plan>` or `/ns autorun no-commit <plan>`); with auto-commit off, the interactive "Commit first" option still lets you commit on demand.
 - The **ns-verifier** runs two passes: a review pass (correctness, regressions, convention drift) and an audit pass (security, injection, secrets, input validation). Project-specific risks travel via the ns-scout's `Domain risks worth flagging to auditor` section in `brief.md`. Domain knowledge is never hardcoded into the ns-verifier.
 
 ## Troubleshooting
@@ -143,16 +151,6 @@ Add `.northstar/` to your target repo's `.gitignore`.
 **Ns-verifier keeps re-dispatching ns-executer**: there's a finding the ns-executer cannot fix. After three attempts the orchestrator hands control back; read the latest `review.md` / `audit.md` and either resolve manually, edit the plan and `/ns retry`, or `/ns-skip`.
 
 **Artifacts under `.northstar/parts/<id>/`** are your friend. They're the persistent record of every reasoning step. Open them any time.
-
-## Design
-
-- **Files-as-IPC.** All subagent communication happens through files in `.northstar/parts/<id>/`. The orchestrator's prompt context never bloats with subagent output bodies.
-- **Single state.json + regenerated STATUS.md.** Atomic writes, one place to scan, plus a human-readable dashboard.
-- **One Part per tick.** Hard pause at Part boundaries. Retry loops inside a Part happen within a single tick.
-- **Stack-agnostic agents.** Project context is discovered by the ns-scout at runtime and surfaced to the rest of the pipeline through `brief.md`.
-- **Domain risks via a single channel.** Ns-verifier's audit pass inherits project-specific concerns only if the ns-scout surfaces them. The ns-verifier's prompt itself contains no domain knowledge.
-
-See [`docs/architecture.md`](docs/architecture.md) for the full design write-up, [`docs/decisions.md`](docs/decisions.md) for the rationale behind each major design choice, and [`docs/extending.md`](docs/extending.md) for how to add a new subagent role.
 
 ## License
 
