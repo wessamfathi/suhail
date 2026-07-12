@@ -24,7 +24,7 @@ After the guards pass, first check `run_phase`. If `run_phase == "master_plan_ap
 
 ### master_plan_approval checkpoint
 
-Inject the batch Approve-all resolution without presenting an AskUserQuestion. This mirrors the autorun guard at `su.md:212` and the `Approve all` resolution at `su.md:215` — it is the `/su-next` equivalent of that same state mutation:
+Inject the batch Approve-all resolution without presenting an AskUserQuestion. This mirrors the **Autorun guard** step and the `Approve all` resolution in `su.md`'s `await_approval` (reason = `all parts scouted` or `master_plan_approval`) handler — it is the `/su-next` equivalent of that same state mutation:
 
 1. Read `.suhail/state.json` into memory.
 2. Set `batch_auto_approve = true`.
@@ -40,14 +40,14 @@ This checkpoint is checked before the `current_step`-based branches below becaus
 
 ### awaiting_plan_approval
 
-Inject an implicit "Approve" without presenting an AskUserQuestion to the user:
+Inject an implicit "Approve" without presenting an AskUserQuestion to the user. This is the `/su-next` equivalent of the `Approve` branch in `su.md`'s `await_approval` (reason = `part_plan_approval`) handler:
 
 1. Read `.suhail/state.json` into memory.
-2. Set `auto_approve_planner = true`.
+2. Set `auto_approve_planner = true`, and set the gated Part's `status = "executing"` (the Part whose status is `awaiting_plan_approval`; if several are gated, the lowest-integer one).
 3. Update `updated_at` to the current ISO 8601 timestamp.
 4. Write the full state.json back (per the state-machine invariant: always write the full file from the in-memory model, never partial-update).
-5. Locate `su.md` using the two-location lookup described below, read it, and follow its instructions for **exactly one tick** as if the orchestrator had been invoked with empty arguments. Since `current_step` is exactly `awaiting_plan_approval`, setting `auto_approve_planner = true` makes the orchestrator's plan-approval gate take its "Approve" branch automatically: set `current_step = "executing"`, then re-tick.
-6. After the single re-tick (which will dispatch the executer per the `executing` branch), end the turn. Do NOT loop further regardless of mode.
+5. Locate `su.md` using the lookup described below, read it, and follow its instructions for **exactly one tick** as if the orchestrator had been invoked with empty arguments. With the Part now `executing`, this tick dispatches its executer.
+6. After the single re-tick, end the turn. Do NOT loop further regardless of mode.
 
 This auto-approval intentionally bypasses the user's plan-review gate. Apply it only when `current_step` is exactly `awaiting_plan_approval`; never inject "Approve" for any state outside the two sanctioned cases (this one, and the `master_plan_approval checkpoint` branch above).
 
@@ -59,16 +59,17 @@ For `pending`, `scouting`, `executing`, `executed`, `verifying`:
 2. Read it and follow its instructions for **exactly one tick**, treating this turn as if the user had typed `/su continue` (empty arguments).
 3. Do NOT loop, even if `mode == "run-to"`. After the single tick, end the turn.
 
-This branch also covers the inter-Part "Continue to Part M?" handoff: when the orchestrator finishes a Part in interactive mode it transitions the next Part to `pending` and then ends with the AskUserQuestion. At the next invocation `current_step == "pending"`, and advancing `pending → scouting` is exactly what selecting "Continue" would have done.
+This branch also covers the level-boundary "Continue to level L+1?" handoff: when a level's Parts are all terminal and the user paused at the interactive level checkpoint, the next tick re-enters `su.md`'s `complete` handler. Advancing through it (performing the level transition) is exactly what selecting "Continue" would have done — `/su-next` follows that Continue branch without re-asking. This is a "next" action, not an approval bypass: no plan-review gate is skipped at a level boundary.
 
 ### Locating `su.md`
 
 Check these paths in order:
 
-1. The same directory as this command file (sibling).
+1. Plugin install: `${CLAUDE_PLUGIN_ROOT}/commands/su.md` — resolves only when installed as a Claude Code plugin (token substituted inline before this file is read); otherwise the token is left literal and the path will not exist, so it falls through.
+2. The same directory as this command file (sibling).
    - Project install: `<repo>/.claude/commands/su.md`.
    - User install: `~/.claude/commands/su.md`.
-2. If neither path is found, end with: "Cannot locate `su.md` — reinstall Suhail."
+3. If no path is found, end with: "Cannot locate `su.md` — reinstall Suhail."
 
 Do not duplicate or summarize the orchestrator logic here. The canonical state machine lives in `su.md`.
 
