@@ -33,10 +33,11 @@ Treat `$ARGUMENTS` as the explicit plan path. Skip the auto-detection section en
 
 Check these paths in order:
 
-1. The same directory as this command file (sibling).
+1. Plugin install: `${CLAUDE_PLUGIN_ROOT}/commands/su.md` — resolves only when installed as a Claude Code plugin (token substituted inline before this file is read); otherwise the token is left literal and the path will not exist, so it falls through.
+2. The same directory as this command file (sibling).
    - Project install: `<repo>/.claude/commands/su.md`.
    - User install: `~/.claude/commands/su.md`.
-2. If neither path is found, end with: "Cannot locate `su.md` — reinstall Suhail."
+3. If no path is found, end with: "Cannot locate `su.md` — reinstall Suhail."
 
 Do not duplicate or summarize the orchestrator logic here. The canonical state machine lives in `su.md`.
 
