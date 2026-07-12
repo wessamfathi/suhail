@@ -206,12 +206,20 @@ switch ($runPhase) {
     }
 
     "batch_scouting" {
+        # Route blockers first — a halted scout must reach the user before any
+        # re-dispatch can clobber artifacts or loop on a deterministic failure.
+        $blockedPart = Batch-First @("needs_user")
+        if ($null -ne $blockedPart) {
+            Write-Output "{`"action`":`"needs_user`",`"part_id`":`"$blockedPart`"}"
+            exit 0
+        }
+
         # First part in the CURRENT BATCH still needing a scout/brief. Parts
         # at future levels are pending too — they must not be scouted early.
         $pendingPart = Batch-First @("scouting", "pending")
 
         if ($null -eq $pendingPart) {
-            Write-Output '{"action":"await_approval","reason":"all parts scouted"}'
+            Write-Output '{"action":"await_approval","reason":"master_plan_approval"}'
         } elseif (Brief-Exists $pendingPart) {
             Write-Output "{`"action`":`"advance_scouting`",`"part_id`":`"$pendingPart`"}"
         } else {
