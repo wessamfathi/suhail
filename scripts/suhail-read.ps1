@@ -1,8 +1,8 @@
-# northstar-read.ps1 — read-only artifact reader for Northstar.
+# suhail-read.ps1 — read-only artifact reader for Suhail.
 #
 # Usage:
-#   northstar-read.ps1 <path/to/parts/part-N>
-#   northstar-read.ps1 --help
+#   suhail-read.ps1 <path/to/parts/part-N>
+#   suhail-read.ps1 --help
 #
 # Exit codes:
 #   0  summary JSON emitted to stdout (even if some artifact files are absent)
@@ -27,11 +27,11 @@ $PartDir = ""
 
 foreach ($arg in $RemainingArgs) {
     if ($arg -eq "-h" -or $arg -eq "--help") {
-        Write-Output "northstar-read.ps1 — read-only artifact reader for Northstar."
+        Write-Output "suhail-read.ps1 — read-only artifact reader for Suhail."
         Write-Output ""
         Write-Output "Usage:"
-        Write-Output "  northstar-read.ps1 <path/to/parts/part-N>"
-        Write-Output "  northstar-read.ps1 --help"
+        Write-Output "  suhail-read.ps1 <path/to/parts/part-N>"
+        Write-Output "  suhail-read.ps1 --help"
         Write-Output ""
         Write-Output "Exit codes:"
         Write-Output "  0  summary JSON emitted to stdout (even if some artifact files are absent)"
@@ -52,7 +52,7 @@ foreach ($arg in $RemainingArgs) {
 }
 
 if ($PartDir -eq "") {
-    [Console]::Error.WriteLine("error: usage: northstar-read.ps1 <path/to/parts/part-N>")
+    [Console]::Error.WriteLine("error: usage: suhail-read.ps1 <path/to/parts/part-N>")
     exit 1
 }
 
