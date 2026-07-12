@@ -115,10 +115,10 @@ for lang in "${LANGS[@]}"; do
   assert_directive "executing: all executed -> start_batch_verifying" "$lang" "$d/state.json" \
     '{"action":"start_batch_verifying"}'
 
-  # --- verifiers in flight -----------------------------------------------------
+  # --- orphaned verifying status (interrupted session) resumes verification ------
   d="$(mkstate batch_verifying part-1 false '["part-1"]' "[$P1_VERIF]")"
-  assert_directive "batch_verifying: verifying -> noop in flight" "$lang" "$d/state.json" \
-    '{"action":"noop","reason":"verifiers in flight for batch"}'
+  assert_directive "batch_verifying: orphaned verifying -> start_batch_verifying" "$lang" "$d/state.json" \
+    '{"action":"start_batch_verifying"}'
 
   # --- blockers route first ----------------------------------------------------
   d="$(mkstate executing part-1 false '["part-1","part-2"]' "[$P1_NEEDS, $P2_EXEC]")"
@@ -143,6 +143,11 @@ for lang in "${LANGS[@]}"; do
   d="$(mkstate needs_user part-2 false '[]' "[$P1_DONE, $P2_EXEC]")"
   assert_directive "needs_user phase -> needs_user directive" "$lang" "$d/state.json" \
     '{"action":"needs_user","part_id":"part-2"}'
+
+  # defensive path: no recorded part id -> JSON null, identical in both languages
+  d="$(mkstate needs_user null false '[]' "[$P1_DONE]")"
+  assert_directive "needs_user phase, null part id -> JSON null part_id" "$lang" "$d/state.json" \
+    '{"action":"needs_user","part_id":null}'
 
   # --- aborts ---------------------------------------------------------------------
   d="$(mkstate executing part-1 true '["part-1"]' "[$P1_EXEC]")"

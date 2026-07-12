@@ -16,7 +16,6 @@
 #   {"action":"await_approval","reason":"part_plan_approval","part_id":"part-1"}
 #   {"action":"complete"}
 #   {"action":"finished"}
-#   {"action":"noop","reason":"<text>"}
 
 [CmdletBinding()]
 param(
@@ -51,7 +50,6 @@ foreach ($arg in $RemainingArgs) {
         Write-Output '  {"action":"await_approval","reason":"part_plan_approval","part_id":"part-1"}'
         Write-Output '  {"action":"complete"}'
         Write-Output '  {"action":"finished"}'
-        Write-Output '  {"action":"noop","reason":"<text>"}'
         exit 0
     } elseif ($arg.StartsWith("-")) {
         [Console]::Error.WriteLine("error: unknown argument: $arg")
@@ -163,17 +161,12 @@ function Batch-Directive {
         return
     }
 
-    # All executed, none pending verification-dispatch yet — verify the batch.
-    $p = Batch-First @("executed")
+    # Executed parts await verification. A part still marked 'verifying' on a
+    # FRESH tick is an orphan (the verifying turn was interrupted) — the batch
+    # verify handler re-runs it, adopting completed artifacts when present.
+    $p = Batch-First @("executed", "verifying")
     if ($null -ne $p) {
         Write-Output '{"action":"start_batch_verifying"}'
-        return
-    }
-
-    # Verifiers dispatched but results not yet processed by the orchestrator.
-    $p = Batch-First @("verifying")
-    if ($null -ne $p) {
-        Write-Output '{"action":"noop","reason":"verifiers in flight for batch"}'
         return
     }
 
@@ -237,7 +230,13 @@ switch ($runPhase) {
     }
 
     "needs_user" {
-        Write-Output "{`"action`":`"needs_user`",`"part_id`":`"$currentPartId`"}"
+        # JSON null (not "" / the string "null") when no part id is recorded —
+        # keeps both script families byte-identical on this defensive path.
+        if ($null -eq $currentPartId -or $currentPartId -eq "" -or $currentPartId -eq "null") {
+            Write-Output '{"action":"needs_user","part_id":null}'
+        } else {
+            Write-Output "{`"action`":`"needs_user`",`"part_id`":`"$currentPartId`"}"
+        }
     }
 
     { $_ -eq "completed" -or $_ -eq "complete" } {

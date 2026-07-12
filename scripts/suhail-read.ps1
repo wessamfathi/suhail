@@ -146,9 +146,12 @@ function Get-BlockerFields {
             $severityVal = $Matches[1].Trim()
         } elseif ($line -match '^options:\s*(.+)$') {
             $optionsRaw = $Matches[1].Trim()
-            # options is a YAML inline list like ["a","b","c"] — parse as JSON
+            # options is a YAML inline list like ["a","b","c"] — parse as JSON.
+            # @() wrap: pwsh 7's pipeline unwraps a single-element JSON array
+            # to a bare string (and [] to nothing), which would diverge from
+            # PS 5.1 and from the bash reader's ["..."] / [] output.
             try {
-                $optionsVal = $optionsRaw | ConvertFrom-Json
+                $optionsVal = @($optionsRaw | ConvertFrom-Json)
             } catch {
                 $optionsVal = $null
             }

@@ -103,7 +103,7 @@ To verify the toolchain, run the bundled self-test from a clone of this repo:
 /su fixtures/test_plan.md
 ```
 
-Expected result (about five minutes, detailed at the top of the fixture): three Parts across two levels; a mandatory ⚠ external-dependency pause before Part 2 executes; two marker files (`.suhail-smoketest.txt` containing `suhail smoke ok`, `.suhail-smoketest-2.txt` containing `suhail smoke ok 2`); full artifact sets (`brief.md`, `execution.md`, `review.md`, `audit.md`, captured diff) under `.suhail/parts/part-1/` and `part-2/`; and a synthetic brief with inline verdicts for the trivial Part 3.
+Expected result (about five minutes, detailed at the top of the fixture): three Parts across two levels; a mandatory ⚠ external-dependency pause before Part 2 executes; two marker files (`.suhail-smoketest.txt` containing `suhail smoke ok`, `.suhail-smoketest-2.txt` containing `suhail smoke ok 2`); full artifact sets (`brief.md`, `execution.md`, `review.md`, `audit.md`, captured diff) under `.suhail/parts/part-1/` and `part-2/`; and a synthetic inline brief for the trivial Part 3 — whose non-empty diff still gets a real verifier run (review + audit), since no classification can skip the audit.
 
 ## Slash commands
 

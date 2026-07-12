@@ -47,7 +47,7 @@ For the performance-auditor example, the smallest change is a new Part status (`
 
 1. In `scripts/suhail-tick.sh` AND `scripts/suhail-tick.ps1`: add a `batch_first perf_auditing`-style query to `batch_directive` emitting a new directive (e.g. `{"action":"dispatch_perf_auditor","part_id":...}`), positioned in the routing order where the phase belongs.
 2. In `commands/su.md`: add a `### dispatch_perf_auditor` handler (dispatch shape mirrors `start_batch_verifying` step 4), add the status to the per-Part status enum in the state schema section, and wire the completion path.
-3. Add matrix cases to `tests/tick-matrix.sh` for the new status — the harness's reachability check fails if a directive is emitted with no handler, or a handler exists that nothing emits.
+3. Add matrix cases to `tests/tick-matrix.sh` for the new status, and add the new directive name to the `directives` array in `tests/payload-checks.sh` — that array drives the reachability check (directive emitted with no handler / handler nothing emits), so a new directive fails it until listed.
 
 ### 3. Packaging
 

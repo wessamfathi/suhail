@@ -135,9 +135,12 @@ extract_blocker() {
 
   local from_raw severity_raw options_raw
 
-  from_raw="$(echo "$frontmatter" | grep '^from:' | head -1 | sed 's/^from:[[:space:]]*//; s/[[:space:]]*$//')"
-  severity_raw="$(echo "$frontmatter" | grep '^severity:' | head -1 | sed 's/^severity:[[:space:]]*//; s/[[:space:]]*$//')"
-  options_raw="$(echo "$frontmatter" | grep '^options:' | head -1 | sed 's/^options:[[:space:]]*//')"
+  # `|| true` guards: grep exits 1 when a key is absent, and under
+  # `set -euo pipefail` that would abort the whole script instead of
+  # reaching the null fallbacks below.
+  from_raw="$(echo "$frontmatter" | { grep '^from:' || true; } | head -1 | sed 's/^from:[[:space:]]*//; s/[[:space:]]*$//')"
+  severity_raw="$(echo "$frontmatter" | { grep '^severity:' || true; } | head -1 | sed 's/^severity:[[:space:]]*//; s/[[:space:]]*$//')"
+  options_raw="$(echo "$frontmatter" | { grep '^options:' || true; } | head -1 | sed 's/^options:[[:space:]]*//')"
 
   if [[ -z "$from_raw" ]]; then
     BLOCKER_FROM="null"

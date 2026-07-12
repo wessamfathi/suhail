@@ -15,23 +15,32 @@ cd "$REPO_ROOT"
 
 # --- frontmatter YAML ×14 -------------------------------------------------------
 if python3 -c 'import yaml' 2>/dev/null; then
-  bad="$(python3 - <<'EOF'
-import re, glob, yaml
+  # The checker prints one line per problem; a crash or a broken glob must
+  # fail loudly, never pass vacuously.
+  if bad="$(python3 - <<'EOF'
+import re, glob, sys
+import yaml
 bad = []
-for f in sorted(glob.glob('agents/*.md') + glob.glob('commands/*.md')):
-    text = open(f, encoding='utf-8').read()
-    m = re.match(r'^---\n(.*?)\n---\n', text, re.S)
-    if not m:
-        bad.append(f + ' (no frontmatter)')
-        continue
+files = sorted(glob.glob('agents/*.md') + glob.glob('commands/*.md'))
+if len(files) < 10:
+    bad.append(f'only {len(files)} command/agent files matched — glob broken?')
+for f in files:
     try:
+        text = open(f, encoding='utf-8').read()
+        m = re.match(r'^---\n(.*?)\n---\n', text, re.S)
+        if not m:
+            bad.append(f + ' (no frontmatter)')
+            continue
         yaml.safe_load(m.group(1))
     except Exception as e:
         bad.append(f + ' (' + str(e).splitlines()[0] + ')')
 print('\n'.join(bad))
 EOF
-)"
-  if [[ -z "$bad" ]]; then pass "frontmatter YAML parses for all command/agent files"; else fail "frontmatter YAML parses" "$bad"; fi
+)"; then
+    if [[ -z "$bad" ]]; then pass "frontmatter YAML parses for all command/agent files"; else fail "frontmatter YAML parses" "$bad"; fi
+  else
+    fail "frontmatter YAML parses" "checker crashed (python exited non-zero)"
+  fi
 else
   echo "NOTE: python3+PyYAML not found — frontmatter check skipped (CI runs it)"
 fi
@@ -64,7 +73,7 @@ ps1_tick_normalized="$(tr -d '`' < scripts/suhail-tick.ps1)"
 
 directives=(start_batch_scouting dispatch_scout advance_scouting await_approval
             dispatch_executer start_batch_verifying complete finished needs_user
-            aborted noop)
+            aborted)
 for a in "${directives[@]}"; do
   if grep -qF "\"action\":\"$a\"" scripts/suhail-tick.sh \
      && printf '%s' "$ps1_tick_normalized" | grep -qF "\"action\":\"$a"; then
@@ -81,6 +90,7 @@ done
 
 # no directive emitted without a handler, no dead handler without an emitter
 handlers="$(sed -n 's/^### `\([a-z_]*\)`.*/\1/p' commands/su.md | sort -u)"
+if [[ -z "$handlers" ]]; then fail "handler headings extracted from su.md" "empty — heading format changed?"; else pass "handler headings extracted from su.md"; fi
 for h in $handlers; do
   if printf '%s\n' "${directives[@]}" | grep -qx "$h"; then
     pass "handler is reachable from tick scripts: $h"
@@ -94,6 +104,11 @@ done
 # membership — substring fallbacks could false-pass a phase name contained in
 # another arm's label.
 phases="$(sed -n 's/.*`run_phase` values: \([^.]*\)\..*/\1/p' commands/su.md | head -1 | tr -d '\` ' | tr '|' ' ')"
+if [[ "$(printf '%s\n' $phases | wc -w)" -ge 6 ]]; then
+  pass "run_phase enum extracted from su.md ($(echo $phases | wc -w) values)"
+else
+  fail "run_phase enum extracted from su.md" "got '$phases' — schema sentence reworded?"
+fi
 sh_arms="$(sed -n 's/^[[:space:]]*\([a-z_|][a-z_|]*\))$/\1/p' scripts/suhail-tick.sh | tr '|' '\n')"
 for p in $phases; do
   if printf '%s\n' "$sh_arms" | grep -qx "$p"; then
@@ -101,7 +116,10 @@ for p in $phases; do
   else
     fail "run_phase routed in tick.sh: $p" "no case arm"
   fi
-  if grep -q "\"$p\"" scripts/suhail-tick.ps1; then
+  # match only real switch-arm forms ("<phase>" { … or $_ -eq "<phase>") —
+  # a bare substring match would false-pass on strings outside the switch
+  if grep -qE "^[[:space:]]*\"$p\" \{" scripts/suhail-tick.ps1 \
+     || grep -qE "\\\$_ -eq \"$p\"" scripts/suhail-tick.ps1; then
     pass "run_phase routed in tick.ps1: $p"
   else
     fail "run_phase routed in tick.ps1: $p" "no switch arm"

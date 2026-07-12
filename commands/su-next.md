@@ -25,7 +25,7 @@ After the guards pass, first check `run_phase`. If `run_phase == "master_plan_ap
 
 ### master_plan_approval checkpoint
 
-Inject the batch Approve-all resolution without presenting an AskUserQuestion. This mirrors the **Autorun guard** step and the `Approve all` resolution in `su.md`'s `await_approval` (reason = `all parts scouted` or `master_plan_approval`) handler — it is the `/su-next` equivalent of that same state mutation:
+Inject the batch Approve-all resolution without presenting an AskUserQuestion. This mirrors the **Autorun guard** step and the `Approve all` resolution in `su.md`'s `await_approval` (reason = `master_plan_approval`) handler — it is the `/su-next` equivalent of that same state mutation:
 
 1. Read `.suhail/state.json` into memory.
 2. Set `batch_auto_approve = true`.
