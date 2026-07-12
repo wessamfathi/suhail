@@ -40,7 +40,7 @@ Depends on Parts 2, 4, and 6
 Depends on Part 2
 ```
 
-**Parsing rule:** for each line containing `Depends on`, the orchestrator takes the substring from that phrase to the end of the line and collects every integer immediately preceded by the word `Part` or `Parts` (case-insensitive). The collected integers, deduplicated, form the Part's `depends_on` list.
+**Parsing rule:** for each line containing `Depends on`, the orchestrator takes the substring from that phrase to the end of the line and collects every integer immediately preceded by the word `Part` or `Parts` (case-insensitive); after a `Parts` token, the entire comma/`and`-separated integer list to the end of the line is captured, so `Depends on Parts 2, 4, and 6` yields all three. The collected integers, deduplicated, form the Part's `depends_on` list.
 
 This means dependencies are scoped to a single line. If you want to elaborate on the dependency, do it on the same line:
 
@@ -54,7 +54,7 @@ If you put commentary on subsequent lines, those lines are not parsed for depend
 
 A Part is eligible for execution when all its `depends_on` entries are either `completed` or `skipped`. Parts without explicit dependencies are eligible immediately, in numeric order.
 
-Cycles are not detected automatically at parse time — if you write a cycle, INIT will set `current_part_id` to the first Part with no listed dependencies (possibly none, in which case the run gets stuck). Don't write cycles.
+Cycles are detected at INIT: when the dependency graph cannot be layered into levels, the orchestrator writes a `blocker.md` naming the cycle, does not create `state.json`, and ends the turn — the run never starts.
 
 ### Verification
 
@@ -79,7 +79,7 @@ There is no upper bound on a Part's body size, but the scout will skim files rat
 
 ## Example
 
-```markdown
+````markdown
 # My Big Migration
 
 ## Phase 1 — Database
@@ -113,7 +113,7 @@ Backfill `user_preferences.prefs` from the legacy `users.settings` column. After
 ### Part 3 — Read endpoint
 
 Expose `GET /me/preferences`. Depends on Part 1.
-```
+````
 
 After INIT this parses to:
 
@@ -123,7 +123,7 @@ After INIT this parses to:
 | part-2 | Phase 1 — Database | Migrate existing settings | [1] |
 | part-3 | Phase 2 — API | Read endpoint | [1] |
 
-Suhail will start with Part 1. Once it completes, both Part 2 and Part 3 become eligible (only Part 1 was their prerequisite); Suhail picks the lower number (Part 2) next.
+Suhail groups Parts into dependency levels: Part 1 is level 0; Parts 2 and 3 (both depending only on Part 1) form level 1 together. Level 1 is scouted in parallel once Part 1 completes, approved at one master-plan gate, and executed serially in numeric order (Part 2, then Part 3).
 
 ## Things Suhail does NOT parse
 
@@ -141,6 +141,6 @@ If you already have a plan file using a different separator (e.g. `### Part 1: F
 
 ## Validation
 
-To check whether a plan parses cleanly without starting a run, you can `/su <plan-path>` then choose "Show parsed structure" at the INIT prompt, then `/su-abort`. This is a non-destructive way to validate.
+There is no dedicated dry-run validator yet: `/su <plan-path>` starts a real run immediately (INIT parses the plan, writes `.suhail/state.json`, and dispatches the level-0 scouts). If INIT finds no Parts or a dependency cycle it refuses before creating state, which catches the two most common plan mistakes. To inspect how a plan parsed after starting it, check the Progress table in `.suhail/STATUS.md`, then `/su-abort` if you don't want to continue — abort preserves all artifacts.
 
 A future release may add `/su validate <plan-path>` as a dedicated read-only check.

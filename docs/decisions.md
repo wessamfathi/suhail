@@ -6,13 +6,41 @@ Append new entries at the top. Each entry has a date, a one-line headline, what 
 
 ---
 
+## 2026-07-12 — Public-release hardening; jq is the one allowed runtime dependency
+
+**Decided:** before the first public release, the state machine was made fail-closed (unknown Part statuses and phases are errors, never silent completion), the audit surface was widened from executer-self-reported file lists to actual `git status` state, the trivial fast path lost its ability to skip the security audit, and a committed test harness (`tests/`) now pins the tick/read/write contracts for both script families. Alongside this, `jq` is recorded as the single allowed exception to the "markdown and shell only" dependency rule: the POSIX helper scripts hard-require it and refuse to run without it.
+
+**Why:** JSON manipulation in pure POSIX shell is where correctness goes to die; jq is ubiquitous, stable, and single-purpose. The alternative — hand-rolled shell JSON parsing — was rejected as a far larger correctness risk than one well-known dependency. The requirement is documented in the README and CONTRIBUTING rather than hidden in script error messages.
+
+---
+
+## 2026-07-12 — Renamed Northstar → Suhail (v1.0.0)
+
+**Decided:** the project is rebranded to Suhail — the Arabic name for Canopus, the guiding star of Arab navigators. Commands `/ns*` → `/su*`, agents `ns-*` → `su-*`, scripts `northstar-*` → `suhail-*`, state dir `.northstar/` → `.suhail/`, plugin `northstar@northstar` → `suhail@suhail`. Treated as a breaking change (state-dir move) per the IPC rule, hence 1.0.0.
+
+**Why:** "Northstar" collides with several adjacent projects in the AI-agent and dev-tool space (a major game-mod framework, another Claude Code plugin, an AI planning product). Suhail is collision-free in the developer-tool space and keeps the guiding-star identity.
+
+---
+
+## 2026-07-02 — Plugin-only distribution (supersedes 2026-05-14 install-script decision)
+
+**Decided:** Suhail distributes solely as a Claude Code plugin. The repo doubles as its own marketplace (`.claude-plugin/marketplace.json` + `plugin.json`). Install is `/plugin marketplace add wessamfathi/suhail` then `/plugin install suhail@suhail`. The `scripts/install.{sh,ps1}` copy-installers were removed.
+
+**Why:** the plugin model is native, versioned, self-updating, and requires no file-copy logic to maintain across POSIX/PowerShell. It bundles `commands/`, `agents/`, and `scripts/` as-is and exposes them via `${CLAUDE_PLUGIN_ROOT}`, which the script-path lookup checks first. The two installers were duplicated maintenance surface (two shells, `--project`/`--force`/`--gitignore` flags, stale-file cleanup) that the plugin system now handles.
+
+**What this supersedes:** the 2026-05-14 "User-level install by default, project-level optional" decision — there are no install scripts to have a default scope. The `.gitignore` auto-edit convenience is also gone; users add `.suhail/` to their target repo's `.gitignore` manually (README documents this).
+
+**Trade-off:** drops support for Claude Code versions without plugin support. Acceptable — plugin support is broadly available, and the manual project/user-copy lookup steps remain in `commands/su.md` for anyone who copies the files by hand.
+
+---
+
 ## 2026-05-21 — Orchestrator auto-commits each Part atomically (on by default)
 
 **Decided:** after a Part is verified clean and marked `completed`, the orchestrator creates exactly one git commit containing only that Part's `files_changed`. On by default (`auto_commit: true`); opt out per run with the `no-commit` argument. Applies in all modes. The orchestrator never pushes, deploys, amends, or force-pushes, and a failed commit raises an orchestrator blocker instead of retrying/amending. The **su-executer** still never commits — committing is solely the orchestrator's job, at the verified-clean boundary.
 
 **Why:** an unattended (autorun) run previously left all Parts as one undifferentiated working-tree diff, making review, partial push, and selective rollback hard. One commit per verified Part maps the git history onto the plan's structure: each commit is reviewable in isolation, pushable independently, and revertable without disturbing other Parts. Tying the commit to the verified-clean transition (not to execution) means only Parts that passed review/audit enter history.
 
-**Considered alternatives:** committing after execution (rejected — would record Parts that later fail verification); a single squashed commit at run end (rejected — loses the per-Part atomicity that makes review and rollback easy); keeping commits fully manual (rejected — the user explicitly wanted commits created "as it works"). This reverses the earlier "never commit" stance in the orchestrator's commit policy; the v1 "never phone home / no telemetry" commitment is unaffected.
+**Considered alternatives:** committing after execution (rejected — would record Parts that later fail verification); a single squashed commit at run end (rejected — loses the per-Part atomicity that makes review and rollback easy); keeping commits fully manual (rejected — a core design requirement was that commits land as the work completes). This reverses the earlier "never commit" stance in the orchestrator's commit policy; the v1 "never phone home / no telemetry" commitment is unaffected.
 
 ---
 
@@ -104,11 +132,11 @@ If they shared findings, the second one would defer to the first and miss things
 
 ---
 
-## 2026-05-14 — One Part per tick, hard pause at Part boundaries
+## 2026-05-14 — One Part per tick, hard pause at Part boundaries (amended by the v0.13 batched execution: checkpoints are per approval gate and per dependency level — see docs/architecture.md)
 
 **Decided:** each `/su` invocation in interactive mode advances state by exactly one Part. After each Part completes, the orchestrator ends its turn with an AskUserQuestion ("Continue to Part M?"). No silent advancement.
 
-**Why:** the user (and stakeholders) explicitly required per-Part user approval. Every Part is a checkpoint. This is the system's most important property in interactive mode — it's the reason a user can trust Suhail with a 50-Part plan.
+**Why:** per-Part user approval is a hard requirement of the design. Every Part is a checkpoint. This is the system's most important property in interactive mode — it's the reason a user can trust Suhail with a 50-Part plan.
 
 **Escape hatch:** `run-to <part-id>` bypasses per-Part pauses (and plan approval) until the target is reached. Designed for unattended runs. A 20-Part safety cap forces an interactive checkpoint even mid-target so unattended runs cannot go arbitrarily long.
 
@@ -124,7 +152,7 @@ If they shared findings, the second one would defer to the first and miss things
 
 ---
 
-## 2026-05-14 — User-level install by default, project-level optional
+## 2026-05-14 — User-level install by default, project-level optional (superseded — see 2026-07-02 plugin-only distribution)
 
 **Decided:** `install.sh` and `install.ps1` default to `~/.claude/`. `--project <path>` installs into `<path>/.claude/` instead.
 
@@ -161,13 +189,3 @@ This also means a run can be aborted at any time without contaminating the user'
 **Why:** Suhail is a thin coordinator running locally in Claude Code. Telemetry adds privacy concerns, network dependencies, and trust friction for a tool that's supposed to be inspectable. The whole point of the artifacts-on-disk design is "you can see everything Suhail is doing"; adding a phone-home would contradict that.
 
 ---
-
-## 2026-07-02 — Plugin-only distribution (supersedes 2026-05-14 install-script decision)
-
-**Decided:** Suhail distributes solely as a Claude Code plugin. The repo doubles as its own marketplace (`.claude-plugin/marketplace.json` + `plugin.json`). Install is `/plugin marketplace add wessamfathi/suhail` then `/plugin install suhail@suhail`. The `scripts/install.{sh,ps1}` copy-installers were removed.
-
-**Why:** the plugin model is native, versioned, self-updating, and requires no file-copy logic to maintain across POSIX/PowerShell. It bundles `commands/`, `agents/`, and `scripts/` as-is and exposes them via `${CLAUDE_PLUGIN_ROOT}`, which the script-path lookup checks first. The two installers were duplicated maintenance surface (two shells, `--project`/`--force`/`--gitignore` flags, stale-file cleanup) that the plugin system now handles.
-
-**What this supersedes:** the 2026-05-14 "User-level install by default, project-level optional" decision — there are no install scripts to have a default scope. The `.gitignore` auto-edit convenience is also gone; users add `.suhail/` to their target repo's `.gitignore` manually (README documents this).
-
-**Trade-off:** drops support for Claude Code versions without plugin support. Acceptable — plugin support is broadly available, and the manual project/user-copy lookup steps remain in `commands/su.md` for anyone who copies the files by hand.

@@ -3,7 +3,7 @@ description: Scan the current project and cache stack, layout, conventions, and 
 argument-hint: (empty) | refresh
 ---
 
-# /su-init — Suhail Initializer v0.2.1
+# /su-init — Suhail Initializer
 
 You are now acting as the **Suhail initializer** for this turn. Your job is to scan the current project once and cache structured intel that downstream Suhail commands and subagents consult as a baseline. You delegate the actual scanning to the `su-indexer` subagent; you do not read project source files yourself.
 
