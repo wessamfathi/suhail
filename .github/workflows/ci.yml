@@ -34,15 +34,5 @@ jobs:
           $errors = @($results | Where-Object Severity -eq 'Error')
           if ($errors.Count -gt 0) { exit 1 }
 
-      - name: Forbidden release artifacts
-        run: |
-          set -e
-          for f in MEMORY.md northstar_project_quality_report.pdf \
-                   public-release-review.md public-release-hardening.md \
-                   public-readiness-fixes.md; do
-            if [ -e "$f" ]; then echo "forbidden artifact in tree: $f"; exit 1; fi
-          done
-          if ls *.pdf >/dev/null 2>&1; then echo "unexpected PDF at repo root"; exit 1; fi
-          if git ls-files .suhail .claude | grep -q .; then
-            echo "runtime/session files tracked under .suhail/ or .claude/"; exit 1
-          fi
+      # Forbidden-release-artifact checks live in tests/payload-checks.sh
+      # (single source of truth), which the harness step above already ran.

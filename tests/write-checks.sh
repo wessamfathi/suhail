@@ -12,12 +12,9 @@ source ./helpers.sh
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-langs=(sh)
-if [[ "$HAVE_PWSH" -eq 1 ]]; then langs+=(ps1); else echo "NOTE: pwsh not found — PowerShell cases skipped (CI runs them)"; fi
-
 STATE_JSON='{"version":1,"tool_version":"test","plan_path":"plan.md","updated_at":"2026-01-01T00:00:00Z","mode":"interactive","run_phase":"executing","current_part_id":"part-1","max_retries":3,"current_batch":["part-1"],"parts":[{"id":"part-1","title":"a | b","group":"g | h","depends_on":[],"level":0,"status":"executing","attempts":0}],"global_decisions":[],"blockers":[]}'
 
-for lang in "${langs[@]}"; do
+for lang in "${LANGS[@]}"; do
   dir="$WORK/$lang"; mkdir -p "$dir"
   state="$dir/state.json"
   if [[ "$lang" == "sh" ]]; then
@@ -29,8 +26,7 @@ for lang in "${langs[@]}"; do
 
   # no BOM on either output
   for f in "$state" "$dir/STATUS.md"; do
-    head3="$(head -c 3 "$f" | od -An -tx1 | tr -d ' \n')"
-    if [[ "$head3" == "efbbbf" ]]; then fail "no BOM: $(basename "$f") [$lang]" "found UTF-8 BOM"; else pass "no BOM: $(basename "$f") [$lang]"; fi
+    if has_bom "$f"; then fail "no BOM: $(basename "$f") [$lang]" "found UTF-8 BOM"; else pass "no BOM: $(basename "$f") [$lang]"; fi
   done
 
   # LF only

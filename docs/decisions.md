@@ -12,6 +12,8 @@ Append new entries at the top. Each entry has a date, a one-line headline, what 
 
 **Why:** JSON manipulation in pure POSIX shell is where correctness goes to die; jq is ubiquitous, stable, and single-purpose. The alternative — hand-rolled shell JSON parsing — was rejected as a far larger correctness risk than one well-known dependency. The requirement is documented in the README and CONTRIBUTING rather than hidden in script error messages.
 
+For completeness of the dependency log: the test harness's frontmatter check uses python3 + PyYAML as a **dev-only** tool — the check self-skips with a notice when they're absent locally, CI provides them, and nothing at runtime touches Python. This is not a second runtime exception.
+
 ---
 
 ## 2026-07-12 — Renamed Northstar → Suhail (v1.0.0)

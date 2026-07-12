@@ -11,7 +11,7 @@ Thanks for considering a contribution. Suhail is a small project (markdown files
 
 ## Local setup
 
-You'll need [Claude Code](https://claude.com/claude-code) installed to run the pipeline, plus `jq` on PATH if you're on macOS/Linux (`brew install jq` / `apt install jq`) — the POSIX helper scripts refuse to run without it. Windows needs nothing beyond PowerShell 5.1+. The orchestrator and role subagents are plain markdown, so there's no build step.
+You'll need [Claude Code](https://claude.com/claude-code) installed to run the pipeline, plus `jq` on PATH if you're on macOS/Linux (`brew install jq` / `apt install jq`) — the POSIX helper scripts refuse to run without it. Windows needs nothing beyond PowerShell 5.1+. Optional dev tooling: python3 with PyYAML lets `./tests/run-all.sh` run the frontmatter check locally (it skips politely when missing; CI always runs it). The orchestrator and role subagents are plain markdown, so there's no build step.
 
 Clone the repo.
 
