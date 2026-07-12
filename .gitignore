@@ -1,6 +1,6 @@
-# Northstar runtime artifacts (when developing against a target repo inside this checkout)
-.northstar/
-.northstar-*.txt
+# Suhail runtime artifacts (when developing against a target repo inside this checkout)
+.suhail/
+.suhail-*.txt
 
 # Claude local settings
 .claude/settings.local.json

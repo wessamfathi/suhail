@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# northstar-read.sh — read-only artifact reader for Northstar.
+# suhail-read.sh — read-only artifact reader for Suhail.
 #
 # Usage:
-#   northstar-read.sh <path/to/parts/part-N>
-#   northstar-read.sh --help
+#   suhail-read.sh <path/to/parts/part-N>
+#   suhail-read.sh --help
 #
 # Exit codes:
 #   0  summary JSON emitted to stdout (even if some artifact files are absent)
@@ -48,7 +48,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$PART_DIR" ]]; then
-  die1 "usage: northstar-read.sh <path/to/parts/part-N>"
+  die1 "usage: suhail-read.sh <path/to/parts/part-N>"
 fi
 
 if [[ ! -d "$PART_DIR" ]]; then

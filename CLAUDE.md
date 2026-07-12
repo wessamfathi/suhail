@@ -4,14 +4,14 @@ Guidance for Claude Code working inside this repository.
 
 ## What this repo is
 
-Northstar is a generic plan-orchestration pipeline for Claude Code. The repo ships role subagents (`agents/*.md`), a slash-command-based orchestrator (`commands/*.md`), helper runtime scripts (`scripts/`), plugin manifests (`.claude-plugin/`), fixtures, and docs. It is itself a Claude Code project — when you open it in Claude Code you are working on the tool, not running it.
+Suhail is a generic plan-orchestration pipeline for Claude Code. The repo ships role subagents (`agents/*.md`), a slash-command-based orchestrator (`commands/*.md`), helper runtime scripts (`scripts/`), plugin manifests (`.claude-plugin/`), fixtures, and docs. It is itself a Claude Code project — when you open it in Claude Code you are working on the tool, not running it.
 
 ## Repo layout at a glance
 
 ```
-agents/                # Role subagents (ns-scout, ns-executer, ns-verifier).
-commands/              # Slash commands (ns, ns-init, ns-discover, ns-next). The orchestrator state machine lives in commands/ns.md.
-fixtures/              # Plan files used to exercise Northstar end-to-end.
+agents/                # Role subagents (su-scout, su-executer, su-verifier).
+commands/              # Slash commands (su, su-init, su-discover, su-next). The orchestrator state machine lives in commands/su.md.
+fixtures/              # Plan files used to exercise Suhail end-to-end.
 scripts/               # POSIX + PowerShell installers.
 docs/                  # plan-format.md, architecture.md, extending.md, decisions.md.
 README.md              # User-facing.
@@ -21,24 +21,24 @@ LICENSE                # MIT.
 
 ## Key architectural facts (do not forget)
 
-- **The orchestrator is a slash command, not a subagent.** It lives in `commands/ns.md`. Earlier (v0.1.0) it was at `agents/northstar.md`; that did not work because Claude Code subagents cannot spawn nested subagents. The slash command body is injected into the top-level session, which can use the Agent tool to dispatch role subagents. Do not move it back into `agents/`. See `docs/architecture.md` § "Why the orchestrator lives in the slash command".
+- **The orchestrator is a slash command, not a subagent.** It lives in `commands/su.md`. Earlier (v0.1.0) it was at `agents/suhail.md`; that did not work because Claude Code subagents cannot spawn nested subagents. The slash command body is injected into the top-level session, which can use the Agent tool to dispatch role subagents. Do not move it back into `agents/`. See `docs/architecture.md` § "Why the orchestrator lives in the slash command".
 - **Subagent IPC is files-only.** The orchestrator passes paths in prompts; subagents read inputs from disk and write outputs to disk. The orchestrator never echoes subagent bodies into the top-level conversation. Preserve this contract — it's why context stays bounded.
-- **Subagents must not coordinate directly.** Ns-scout → ns-executer is one-way. The ns-verifier runs independently after the ns-executer.
-- **Domain knowledge flows through one channel.** The ns-verifier's audit pass is intentionally generic. Project-specific risks reach it only through `brief.md`'s `Domain risks worth flagging to auditor` section. Do not bake domain rules into the ns-verifier's prompt.
+- **Subagents must not coordinate directly.** Su-scout → su-executer is one-way. The su-verifier runs independently after the su-executer.
+- **Domain knowledge flows through one channel.** The su-verifier's audit pass is intentionally generic. Project-specific risks reach it only through `brief.md`'s `Domain risks worth flagging to auditor` section. Do not bake domain rules into the su-verifier's prompt.
 
 ## When making changes
 
 - **Adding/changing a role subagent:** edit `agents/<role>.md`. Each role's contract (Input / Process / Output / Blocker protocol / Don't) is documented inline; preserve those sections.
-- **Adding/changing orchestrator behavior:** edit `commands/ns.md`. The state machine, parsing rules, dispatch shapes, narration discipline, and commit policy are all there.
-- **Adding a new role:** see `docs/extending.md` for the recipe — write the agent file, add a state-machine phase in `commands/ns.md`, bump the version, add a CHANGELOG entry.
-- **Changing the plan format:** `docs/plan-format.md` is the spec; `commands/ns.md` has the parser. Update both.
+- **Adding/changing orchestrator behavior:** edit `commands/su.md`. The state machine, parsing rules, dispatch shapes, narration discipline, and commit policy are all there.
+- **Adding a new role:** see `docs/extending.md` for the recipe — write the agent file, add a state-machine phase in `commands/su.md`, bump the version, add a CHANGELOG entry.
+- **Changing the plan format:** `docs/plan-format.md` is the spec; `commands/su.md` has the parser. Update both.
 
 ## Version bumps
 
-`tool_version` appears in two places inside `commands/ns.md` plus three other files — keep all in sync on every release:
+`tool_version` appears in two places inside `commands/su.md` plus three other files — keep all in sync on every release:
 
-1. `commands/ns.md` — heading (`# /ns — Northstar vX.Y.Z`) and the `tool_version` field inside the state schema block. These are the only two sync points in `commands/ns.md`. The write scripts (`scripts/northstar-write.{ps1,sh}`) render `tool_version` from `state.tool_version` at runtime and do not hardcode a version string — no separate edit needed there.
-2. `README.md` — the footer line "Northstar vX.Y.Z. Telemetry: none."
+1. `commands/su.md` — heading (`# /su — Suhail vX.Y.Z`) and the `tool_version` field inside the state schema block. These are the only two sync points in `commands/su.md`. The write scripts (`scripts/suhail-write.{ps1,sh}`) render `tool_version` from `state.tool_version` at runtime and do not hardcode a version string — no separate edit needed there.
+2. `README.md` — the footer line "Suhail vX.Y.Z. Telemetry: none."
 3. `CHANGELOG.md` — new section header `## [X.Y.Z] — YYYY-MM-DD`.
 4. `.claude-plugin/plugin.json` — the `version` field. This is the version the plugin marketplace reports; keep it identical to the others.
 
@@ -46,32 +46,32 @@ After bumping: `git tag vX.Y.Z` and push.
 
 ## Plugin distribution
 
-Northstar ships as a Claude Code **plugin** whose own repo doubles as the marketplace catalog:
+Suhail ships as a Claude Code **plugin** whose own repo doubles as the marketplace catalog:
 
 - `.claude-plugin/plugin.json` — plugin manifest (name, version, metadata). `version` is a release sync point (see above).
-- `.claude-plugin/marketplace.json` — marketplace catalog; lists the single `northstar` plugin with `source: "./"` (plugin files live at repo root).
+- `.claude-plugin/marketplace.json` — marketplace catalog; lists the single `suhail` plugin with `source: "./"` (plugin files live at repo root).
 
-Users install with `/plugin marketplace add wessamfathi/northstar` then `/plugin install northstar@northstar`. The plugin bundles `commands/`, `agents/`, and `scripts/` as-is — no file moves. At runtime, plugin-installed commands resolve helper scripts via `${CLAUDE_PLUGIN_ROOT}/scripts/`, which the plugin system substitutes inline before a command file is read; in a non-plugin context that token stays literal and the script lookup falls through to the project/user/dev-repo paths. Distribution is plugin-only; there are no copy-install scripts.
+Users install with `/plugin marketplace add wessamfathi/suhail` then `/plugin install suhail@suhail`. The plugin bundles `commands/`, `agents/`, and `scripts/` as-is — no file moves. At runtime, plugin-installed commands resolve helper scripts via `${CLAUDE_PLUGIN_ROOT}/scripts/`, which the plugin system substitutes inline before a command file is read; in a non-plugin context that token stays literal and the script lookup falls through to the project/user/dev-repo paths. Distribution is plugin-only; there are no copy-install scripts.
 
 ## Testing changes locally
 
-Northstar is hard to unit-test — it's a prompt pipeline. The practical test is end-to-end against the fixtures.
+Suhail is hard to unit-test — it's a prompt pipeline. The practical test is end-to-end against the fixtures.
 
 1. Install the local working copy as a plugin from a local marketplace (the repo is its own marketplace):
    ```
-   /plugin marketplace add /path/to/northstar
-   /plugin install northstar@northstar
+   /plugin marketplace add /path/to/suhail
+   /plugin install suhail@suhail
    ```
-   This loads the current `agents/`, `commands/`, and `scripts/` from the working copy into the plugin cache. After editing, `/plugin marketplace update northstar` then `/reload-plugins` to refresh.
+   This loads the current `agents/`, `commands/`, and `scripts/` from the working copy into the plugin cache. After editing, `/plugin marketplace update suhail` then `/reload-plugins` to refresh.
 2. Open a fresh Claude Code session in the repo root.
-3. Run `/ns fixtures/test_plan.md` and walk it through. Expected behaviors are documented at the top of each fixture file.
+3. Run `/su fixtures/test_plan.md` and walk it through. Expected behaviors are documented at the top of each fixture file.
 4. After each run, clean up:
    ```powershell
-   /ns-abort       # if still in-flight
-   Remove-Item -Recurse -Force .northstar
-   Remove-Item -Force .northstar-*.txt -ErrorAction SilentlyContinue
+   /su-abort       # if still in-flight
+   Remove-Item -Recurse -Force .suhail
+   Remove-Item -Force .suhail-*.txt -ErrorAction SilentlyContinue
    ```
-5. For changes that touch convention discovery (ns-scout) or stack-conventions plumbing, also run against a real project's plan file (any repo you have access to with a multi-Part plan) since that exercises stack discovery against a non-fixture codebase.
+5. For changes that touch convention discovery (su-scout) or stack-conventions plumbing, also run against a real project's plan file (any repo you have access to with a multi-Part plan) since that exercises stack discovery against a non-fixture codebase.
 
 When the smoke test passes against all fixtures, the change is good enough to release.
 
@@ -84,10 +84,10 @@ When the smoke test passes against all fixtures, the change is good enough to re
 
 ## Don't
 
-- Don't run `/ns` from inside the Northstar repo against `fixtures/test_plan.md` and accidentally commit the resulting `.northstar/` or `.northstar-smoketest.txt` — `.gitignore` covers both, keep it that way.
-- Don't add a new dependency (npm package, pip module, anything) without strong justification. Northstar is markdown and shell. Keep it that way.
-- Don't make role subagents stack-aware. If they need stack context, they should discover it via the ns-scout's `brief.md`.
-- Don't change the IPC mechanism (files in `.northstar/parts/<id>/`) without a major version bump and migration plan.
+- Don't run `/su` from inside the Suhail repo against `fixtures/test_plan.md` and accidentally commit the resulting `.suhail/` or `.suhail-smoketest.txt` — `.gitignore` covers both, keep it that way.
+- Don't add a new dependency (npm package, pip module, anything) without strong justification. Suhail is markdown and shell. Keep it that way.
+- Don't make role subagents stack-aware. If they need stack context, they should discover it via the su-scout's `brief.md`.
+- Don't change the IPC mechanism (files in `.suhail/parts/<id>/`) without a major version bump and migration plan.
 
 ## See also
 
