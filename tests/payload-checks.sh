@@ -104,8 +104,7 @@ bom_files=""
 crlf_files=""
 while IFS= read -r f; do
   [[ -f "$f" ]] || continue
-  head3="$(head -c 3 "$f" | od -An -tx1 | tr -d ' \n')"
-  [[ "$head3" == "efbbbf" ]] && bom_files="$bom_files $f"
+  has_bom "$f" && bom_files="$bom_files $f"
   case "$f" in *.md|*.sh|*.ps1|*.json|*.yml|*.gitignore|*.gitattributes)
     grep -q $'\r' "$f" && crlf_files="$crlf_files $f" ;;
   esac
@@ -123,6 +122,7 @@ for f in MEMORY.md northstar_project_quality_report.pdf public-release-review.md
          public-release-hardening.md public-readiness-fixes.md; do
   if [[ -e "$f" ]]; then fail "forbidden artifact absent: $f" "present in tree"; else pass "forbidden artifact absent: $f"; fi
 done
+if compgen -G "*.pdf" >/dev/null; then fail "no PDFs at repo root" "$(ls -- *.pdf)"; else pass "no PDFs at repo root"; fi
 for d in .suhail .claude; do
   if git ls-files "$d" | grep -q .; then fail "no tracked files under $d/" "$(git ls-files "$d" | head -3)"; else pass "no tracked files under $d/"; fi
 done

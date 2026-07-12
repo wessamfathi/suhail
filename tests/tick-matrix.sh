@@ -41,9 +41,6 @@ part() { # part <n> <status> <level>
 
 give_brief() { mkdir -p "$1/parts/part-$2"; printf '# brief\n' > "$1/parts/part-$2/brief.md"; }
 
-langs=(sh)
-if [[ "$HAVE_PWSH" -eq 1 ]]; then langs+=(ps1); else echo "NOTE: pwsh not found — PowerShell cases skipped (CI runs them)"; fi
-
 P1_PENDING="$(part 1 pending 0)"
 P1_EXEC="$(part 1 executing 0)"
 P1_GATE="$(part 1 awaiting_plan_approval 0)"
@@ -58,7 +55,7 @@ P2_EXECD="$(part 2 executed 0)"
 P2_SKIP="$(part 2 skipped 0)"
 P2_DONE="$(part 2 completed 0)"
 
-for lang in "${langs[@]}"; do
+for lang in "${LANGS[@]}"; do
   # --- init routes to the parallel batch-scout handler -----------------------
   d="$(mkstate init null false '[]' "[$P1_PENDING]")"
   assert_directive "init -> start_batch_scouting" "$lang" "$d/state.json" \

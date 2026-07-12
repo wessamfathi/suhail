@@ -15,7 +15,7 @@ Working in this repo means working **on the tool**, not running it. There is no 
 - Subagent IPC is files-only (paths in prompts, artifacts on disk under `.suhail/parts/<id>/`). Never relay artifact bodies through conversation context.
 - Never add runtime dependencies (`jq` is the single recorded exception). Never add telemetry.
 - LF line endings everywhere (enforced by `.gitattributes`); no BOMs.
-- Versions sync across four points: `commands/su.md` heading + `tool_version`, README footer, `.claude-plugin/plugin.json`. CI fails if they disagree.
+- Versions sync across five points: `commands/su.md` heading + `tool_version`, README footer, `.claude-plugin/plugin.json`, and the latest `CHANGELOG.md` section header. CI fails if they disagree.
 
 ## Verifying changes
 

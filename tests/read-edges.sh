@@ -15,9 +15,6 @@ source ./helpers.sh
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-langs=(sh)
-if [[ "$HAVE_PWSH" -eq 1 ]]; then langs+=(ps1); else echo "NOTE: pwsh not found — PowerShell cases skipped (CI runs them)"; fi
-
 mkpart() { local d="$WORK/$1"; mkdir -p "$d"; echo "$d"; }
 
 # --- verdict extraction -------------------------------------------------------
@@ -51,7 +48,7 @@ da="$(mkpart attempts)"
 printf '## Files changed\n- `a.md`\n' > "$da/execution.md"
 printf '## Files changed\n- `a.md`\n- `b.md`\n- `c.md`\n' > "$da/execution-attempt-2.md"
 
-for lang in "${langs[@]}"; do
+for lang in "${LANGS[@]}"; do
   assert_read_field "plain verdict"              "$lang" "$d"  '.review.verdict' '"clean"'
   assert_read_field "quoted verdict escapes"     "$lang" "$dq" '.review.verdict' '"\"clean\""'
   assert_read_field "two-word verdict keeps space" "$lang" "$dw" '.review.verdict' '"needs work"'

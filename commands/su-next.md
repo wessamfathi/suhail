@@ -44,7 +44,7 @@ This checkpoint is checked before the `current_step`-based branches below becaus
 Inject an implicit "Approve" without presenting an AskUserQuestion to the user. This is the `/su-next` equivalent of the `Approve` branch in `su.md`'s `await_approval` (reason = `part_plan_approval`) handler:
 
 1. Read `.suhail/state.json` into memory.
-2. Set `auto_approve_planner = true`, and set the gated Part's `status = "executing"` (the Part whose status is `awaiting_plan_approval`; if several are gated, the lowest-integer one).
+2. Set the gated Part's `status = "executing"` (the Part whose status is `awaiting_plan_approval`; if several are gated, the lowest-integer one within `current_batch`). Do NOT set `auto_approve_planner` — that flag would silently auto-approve every remaining gate in the level, defeating "review Parts individually"; `/su-next` approves exactly one Part per invocation.
 3. Update `updated_at` to the current ISO 8601 timestamp.
 4. Write the full state.json back (per the state-machine invariant: always write the full file from the in-memory model, never partial-update).
 5. Locate `su.md` using the lookup described below, read it, and follow its instructions for **exactly one tick** as if the orchestrator had been invoked with empty arguments. With the Part now `executing`, this tick dispatches its executer.
@@ -81,4 +81,4 @@ Do not duplicate or summarize the orchestrator logic here. The canonical state m
 - Do not INIT a run. If `state.json` is absent, refuse per Guard 1 — never accept a plan path.
 - Do not resolve blockers, attempt retries, or mutate `blocker.md`. Refuse per Guard 3 and let the user route through `/su`.
 - Do not inject an implicit approval outside the two sanctioned cases: `current_step == "awaiting_plan_approval"` (per-Part) and `run_phase == "master_plan_approval"` (batch checkpoint).
-- Do not modify the state schema. The `awaiting_plan_approval` branch writes only `auto_approve_planner`, the gated Part's `status`, and `updated_at`. The `master_plan_approval checkpoint` branch writes only `batch_auto_approve`, `run_phase`, the `status` of every Part in `current_batch`, `current_part_id`, and `updated_at`.
+- Do not modify the state schema. The `awaiting_plan_approval` branch writes only the gated Part's `status` and `updated_at`. The `master_plan_approval checkpoint` branch writes only `batch_auto_approve`, `run_phase`, the `status` of every Part in `current_batch`, `current_part_id`, and `updated_at`.

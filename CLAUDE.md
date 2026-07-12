@@ -88,7 +88,7 @@ When the smoke test passes against all fixtures, the change is good enough to re
 ## Don't
 
 - Don't run `/su` from inside the Suhail repo against `fixtures/test_plan.md` and accidentally commit the resulting `.suhail/` or `.suhail-smoketest.txt` — `.gitignore` covers both, keep it that way.
-- Don't add a new dependency (npm package, pip module, anything) without strong justification. Suhail is markdown and shell; `jq` is the single recorded exception (see docs/decisions.md 2026-07-12). Keep it that way.
+- Don't add a new dependency (npm package, pip module, anything) without strong justification. Suhail is markdown and shell; `jq` is the single recorded runtime exception, and python3+PyYAML is dev-only test tooling that self-skips when absent (both recorded in docs/decisions.md 2026-07-12). Keep it that way.
 - Don't make role subagents stack-aware. If they need stack context, they should discover it via the su-scout's `brief.md`.
 - Don't change the IPC mechanism (files in `.suhail/parts/<id>/`) without a major version bump and migration plan.
 

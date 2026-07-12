@@ -18,6 +18,20 @@ if command -v pwsh >/dev/null 2>&1; then
   HAVE_PWSH=1
 fi
 
+# LANGS: the script families a suite exercises. PowerShell cases run whenever
+# pwsh is on PATH (always true in CI); locally they skip with a notice.
+LANGS=(sh)
+if [[ "$HAVE_PWSH" -eq 1 ]]; then
+  LANGS+=(ps1)
+else
+  echo "NOTE: pwsh not found — PowerShell cases skipped (CI runs them)"
+fi
+
+# has_bom <file> — succeeds when the file starts with a UTF-8 BOM
+has_bom() {
+  [[ "$(head -c 3 "$1" | od -An -tx1 | tr -d ' \n')" == "efbbbf" ]]
+}
+
 pass() { PASS=$((PASS + 1)); printf '  ok  %s\n' "$1"; }
 fail() { FAIL=$((FAIL + 1)); printf 'FAIL  %s\n      %s\n' "$1" "$2"; }
 
