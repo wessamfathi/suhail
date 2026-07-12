@@ -45,4 +45,15 @@ for lang in "${LANGS[@]}"; do
   if jq -e . "$state" >/dev/null 2>&1; then pass "state.json is valid JSON [$lang]"; else fail "state.json is valid JSON [$lang]" "jq parse failed"; fi
 done
 
+# --- byte parity: both writers must render identical files from one payload ------
+if [[ "$HAVE_PWSH" -eq 1 ]]; then
+  for f in STATUS.md state.json; do
+    if cmp -s "$WORK/sh/$f" "$WORK/ps1/$f"; then
+      pass "byte parity sh vs ps1: $f"
+    else
+      fail "byte parity sh vs ps1: $f" "$(diff "$WORK/sh/$f" "$WORK/ps1/$f" | head -5)"
+    fi
+  done
+fi
+
 summary "write-checks"
