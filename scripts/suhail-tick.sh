@@ -7,13 +7,17 @@
 #
 # Exit codes:
 #   0  directive JSON emitted to stdout
-#   1  state.json missing, unreadable, or unparseable; or jq not found
+#   1  state.json missing, unreadable, unparseable, or lacking a parts
+#      array; or jq not found
 #   2  unknown run_phase encountered
+#   3  unroutable Part status in the current batch (fail-closed guard —
+#      an unknown status must never be reported as batch completion)
 #
 # Output: a single-line JSON object, e.g.:
 #   {"action":"dispatch_scout","part_id":"part-1"}
-#   {"action":"await_approval"}
+#   {"action":"await_approval","reason":"part_plan_approval","part_id":"part-1"}
 #   {"action":"complete"}
+#   {"action":"finished"}
 #   {"action":"noop","reason":"<text>"}
 
 set -euo pipefail
@@ -75,6 +79,10 @@ if ! jq empty "$STATE_FILE" 2>/dev/null; then
   die1 "state file is not valid JSON: $STATE_FILE"
 fi
 
+if ! jq -e '(.parts | type) == "array"' "$STATE_FILE" >/dev/null 2>&1; then
+  die1 "state file has no parts array: $STATE_FILE"
+fi
+
 run_phase="$(jq -r '.run_phase // "unknown"' "$STATE_FILE")"
 current_part_id="$(jq -r '.current_part_id // "null"' "$STATE_FILE")"
 batch_auto_approve="$(jq -r '.batch_auto_approve // false' "$STATE_FILE")"
@@ -90,17 +98,6 @@ STATE_DIR="$(dirname "$STATE_FILE")"
 brief_exists() {
   local part_id="$1"
   [[ -f "$STATE_DIR/parts/$part_id/brief.md" ]]
-}
-
-execution_exists() {
-  local part_id="$1"
-  # accept execution.md or execution-attempt-N.md
-  ls "$STATE_DIR/parts/$part_id/execution"*.md 2>/dev/null | grep -q .
-}
-
-review_exists() {
-  local part_id="$1"
-  [[ -f "$STATE_DIR/parts/$part_id/review.md" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -149,6 +146,15 @@ batch_directive() {
     return
   fi
 
+  # Approved-but-ungated Parts: surface the per-Part plan-approval gate.
+  # (Distinct reason from the batch master_plan_approval gate so the
+  # orchestrator can route it — see su.md's await_approval handlers.)
+  p="$(batch_first awaiting_plan_approval)"
+  if [[ -n "$p" ]]; then
+    printf '{"action":"await_approval","reason":"part_plan_approval","part_id":"%s"}\n' "$p"
+    return
+  fi
+
   # All executed, none pending verification-dispatch yet — verify the batch.
   p="$(batch_first executed)"
   if [[ -n "$p" ]]; then
@@ -161,6 +167,22 @@ batch_directive() {
   if [[ -n "$p" ]]; then
     printf '{"action":"noop","reason":"verifiers in flight for batch"}\n'
     return
+  fi
+
+  # Fail closed: only positively-terminal Parts may complete the batch.
+  # Any status the queries above did not route must be an error — a typo or
+  # future status addition must never masquerade as batch completion.
+  local stray
+  stray="$(jq -r '
+    (.current_batch // []) as $b
+    | .parts[]
+    | select(($b | length) == 0 or (.id as $id | $b | index($id)))
+    | select(.status != "completed" and .status != "skipped")
+    | "\(.id) has unroutable status \(.status)"
+    ' "$STATE_FILE" | head -1)"
+  if [[ -n "$stray" ]]; then
+    echo "error: $stray" >&2
+    exit 3
   fi
 
   # Every batch part is completed or skipped — advance the level.
@@ -178,12 +200,9 @@ case "$run_phase" in
     ;;
 
   batch_scouting)
-    # Find first pending part that lacks a brief
-    pending_part="$(jq -r '
-      .parts[]
-      | select(.status == "scouting" or .status == "pending")
-      | .id
-      ' "$STATE_FILE" | head -1)"
+    # First part in the CURRENT BATCH still needing a scout/brief. Parts at
+    # future levels are pending too — they must not be scouted early.
+    pending_part="$(batch_first scouting pending)"
 
     if [[ -z "$pending_part" ]]; then
       printf '{"action":"await_approval","reason":"all parts scouted"}\n'
@@ -203,25 +222,18 @@ case "$run_phase" in
     batch_directive
     ;;
 
-  verifying)
-    # Top-level verifying phase (single-part runs may use this)
-    if [[ -z "$current_part_id" || "$current_part_id" == "null" ]]; then
-      printf '{"action":"noop","reason":"no current_part_id in verifying phase"}\n'
-      exit 0
-    fi
-    if review_exists "$current_part_id"; then
-      printf '{"action":"advance_after_review","part_id":"%s"}\n' "$current_part_id"
-    else
-      printf '{"action":"dispatch_verifier","part_id":"%s"}\n' "$current_part_id"
-    fi
-    ;;
-
   needs_user)
     printf '{"action":"needs_user","part_id":"%s"}\n' "$current_part_id"
     ;;
 
   completed|complete)
     printf '{"action":"complete"}\n'
+    ;;
+
+  finished)
+    # Terminal: the run already completed cleanly. The orchestrator says so
+    # in one sentence and ends the turn — no blocker, no re-dispatch.
+    printf '{"action":"finished"}\n'
     ;;
 
   aborted)
