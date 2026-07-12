@@ -8,6 +8,26 @@ All notable changes to Suhail (formerly Northstar) are documented here. The form
 
 ## [1.0.0] — 2026-07-12
 
+The first public release: the Suhail rename plus a full public-release hardening pass (every finding from the pre-release reviews resolved).
+
+### Fixed
+- **Tick scripts route every state and fail closed.** Part status `awaiting_plan_approval` now routes to a dedicated `part_plan_approval` gate — "Approve and review Parts individually" previously fell through to batch completion and declared the run done with zero Parts executed. Terminal `run_phase: "finished"` gets its own directive — bare `/su` after a clean run previously exited 2 and fabricated a blocker. Unroutable Part statuses are now a named error (exit 3), never silent completion; a missing `parts` array is a clear preflight error instead of a raw jq crash.
+- **Parallel level scouting actually happens.** INIT persisted a phase the tick scripts never routed to the batch handler, so scouts dispatched serially over ALL Parts — future-level Parts could be scouted before their dependencies were terminal. INIT (and level transitions) now route through `start_batch_scouting`, and batch scouting is scoped to `current_batch`.
+- **Per-Part guarantees hold in batched execution.** Every verified Part gets its own atomic commit, Manual-follow-ups checkpoint, and transition card — including the last Part of each level and of the run (previously skipped); the interactive level-boundary pause is restored. Dead handlers (`dispatch_verifier`, `advance_after_review`, `advance_to_part`) removed.
+- **Audit surface widened to actual repo state.** `files_changed` derives from `git status` snapshots around the executer dispatch (validated paths only), not the executer's self-report; self-report omissions are passed to the verifier; executed commands are audited via `## Commands run`. The trivial classification can no longer skip verification — the full review + security audit runs on every non-empty diff.
+- **Retries read the right artifacts.** The orchestrator and both readers resolve the latest `execution-attempt-K.md`; previously the stale attempt-1 file fed the diff, the verifier, and the commit on every retry.
+- **No-commit mode diffs against a per-Part baseline** (`git stash create`) instead of HEAD, so later Parts' reviews exclude earlier Parts' uncommitted changes.
+- **Reader/writer parity and escaping.** Quoted verdicts no longer emit invalid JSON with exit 0; a blank line after `## Verdict` no longer reads as a null verdict; CRLF blocker frontmatter parses on POSIX; `suhail-write.ps1` writes state.json without a UTF-8 BOM; `|` in Part titles/groups can't corrupt the STATUS.md table.
+- **Plugin-install lookups completed.** `/su-next` and `/su-auto` now check `${CLAUDE_PLUGIN_ROOT}` first — both dead-ended with "Cannot locate su.md" on plugin installs, the only supported distribution.
+- **Contract mismatches.** `/su-discover` now checks the exact success sentinel its planner emits (every successful plan write previously landed in the failure branch); `/su-init` detects an indexer blocker before sentinel checks (blocked stub intel no longer reads as success); su-discover-scout reads the real state-schema fields and no longer reports terminal runs as in-flight; the executer sources its check commands from the brief section the scout actually writes; the dependency parser accepts list forms (`Depends on Parts 2, 4, and 6`); invalid YAML frontmatter in `su-scout.md` and `su-discover.md` fixed.
+- **Windows without PowerShell 7 works:** explicit platform detection with a `powershell.exe` fallback (pwsh is not preinstalled on stock Windows).
+- INIT auto-archives a finished/aborted run's artifacts to `.suhail/archive/` instead of deleting them, honoring the never-delete-artifacts promise.
+
+### Added
+- **Committed regression harness (`tests/`)** covering the tick-script state matrix, reader/writer edge cases, and plugin-payload validation for both script families — plus CI (GitHub Actions: harness on bash and pwsh, shellcheck, PSScriptAnalyzer, forbidden-artifact check; SHA-pinned, least-privilege).
+- **Security model documented** (README + `SECURITY.md`): plan files are code-equivalent — run only plans you trust; executer command governance (destructive/network commands need plan justification; every command recorded); standing data-vs-instructions lines in the pipeline agents' prompts.
+- Community files: `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`, bug-report issue form, PR template, `AGENTS.md`.
+
 ### Changed
 - **Project renamed: Northstar → Suhail.** "Northstar" collided with several adjacent projects in the AI-agent and dev-tool space, so the project is rebranded to **Suhail** — the Arabic name for Canopus, the guiding star of Arab navigators. Same guiding-star identity, collision-free name. Everything else about the pipeline is unchanged; this release is the rename plus the version reset to 1.0.0 (the state-dir move is a breaking change, per the project's IPC-stability rule).
 - Full old → new mapping:
