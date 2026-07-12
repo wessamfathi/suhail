@@ -239,7 +239,10 @@ while IFS= read -r dec; do
 done < <(jq -c '.global_decisions // [] | .[]' "$STATE_PATH" | tr -d '\r')
 
 if [[ $decision_count -eq 0 ]]; then
-  decisions_text="None."
+  # trailing newline so the rendered section keeps the same blank-line
+  # separator the PowerShell writer emits (byte parity)
+  decisions_text="None.
+"
 fi
 
 # ---------------------------------------------------------------------------
@@ -259,7 +262,8 @@ while IFS= read -r blk; do
 done < <(jq -c '.blockers // [] | .[]' "$STATE_PATH" | tr -d '\r')
 
 if [[ $blocker_count -eq 0 ]]; then
-  blockers_text="None."
+  blockers_text="None.
+"
 fi
 
 # ---------------------------------------------------------------------------
@@ -278,7 +282,8 @@ while IFS= read -r p_id; do
 done < <(jq -r '.parts // [] | .[].id' "$STATE_PATH" | tr -d '\r')
 
 if [[ $artifact_count -eq 0 ]]; then
-  artifacts_text="None."
+  artifacts_text="None.
+"
 fi
 
 # ---------------------------------------------------------------------------
@@ -307,7 +312,7 @@ STATUS_PATH="${STATE_DIR}/STATUS.md"
   printf '## Outstanding questions\n'
   printf '%s\n' "$blockers_text"
   printf '## Artifacts\n'
-  printf '%s\n' "$artifacts_text"
+  printf '%s' "$artifacts_text"
 } > "$STATUS_PATH"
 
 exit 0
