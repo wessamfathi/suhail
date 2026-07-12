@@ -1,4 +1,4 @@
-﻿# Suhail Skip-Flow Fixture
+# Suhail Skip-Flow Fixture
 
 Tests the `/su-skip` command. A contributor runs `/su`, lets Part 1 complete normally, then invokes `/su-skip` when the orchestrator pauses between Parts to skip Part 2. The run should complete with Part 1 marked `completed` and Part 2 marked `skipped` in `STATUS.md`, and only Part 1's marker file present on disk.
 

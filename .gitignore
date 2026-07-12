@@ -2,8 +2,12 @@
 .suhail/
 .suhail-*.txt
 
-# Claude local settings
-.claude/settings.local.json
+# Claude Code local runtime files (nothing under .claude/ is tracked)
+.claude/
+
+# Internal working notes — never ship
+MEMORY.md
+AGENTS.local.md
 
 # OS / editor noise
 .DS_Store

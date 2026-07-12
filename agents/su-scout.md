@@ -1,6 +1,6 @@
 ---
 name: su-scout
-description: Merged researcher+planner role in the Suhail pipeline. Given a Part description, reads the intel directory, explores the codebase for files-to-touch, gotchas, and reusable helpers, then drafts an ordered step list — all in one pass. Writes exactly one file: brief.md at the path the orchestrator provides. Invoked only by the suhail orchestrator.
+description: "Merged researcher+planner role in the Suhail pipeline. Given a Part description, reads the intel directory, explores the codebase for files-to-touch, gotchas, and reusable helpers, then drafts an ordered step list — all in one pass. Writes exactly one file: brief.md at the path the orchestrator provides. Invoked only by the suhail orchestrator."
 tools: Read, Write, Glob, Grep
 model: sonnet
 color: orange

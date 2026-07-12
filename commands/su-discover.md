@@ -1,6 +1,6 @@
 ---
 description: Interview the user to capture their vision and write a Suhail-format plan that the rest of the pipeline can execute via /su.
-argument-hint: [output-path] (optional; defaults to .suhail/plans/<slug>.md derived from the captured title)
+argument-hint: "[output-path] (optional; defaults to .suhail/plans/<slug>.md derived from the captured title)"
 ---
 
 # /su-discover — Suhail Discoverer v0.2.0
