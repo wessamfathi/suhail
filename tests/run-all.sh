@@ -6,7 +6,7 @@
 # PowerShell implementations too when pwsh is on PATH (always in CI).
 
 set -uo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")"
+cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 
 overall=0
 for suite in tick-matrix.sh read-edges.sh write-checks.sh payload-checks.sh; do

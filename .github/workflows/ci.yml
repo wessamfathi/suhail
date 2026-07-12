@@ -25,7 +25,9 @@ jobs:
         run: |
           # bash -n takes ONE script; extra args become its positional params
           for f in scripts/*.sh tests/*.sh; do bash -n "$f"; done
-          shellcheck scripts/*.sh tests/*.sh
+          # warning gate: warnings and errors fail; info/style notes
+          # (SC1091 source-following, SC2016 literal backticks) do not
+          shellcheck --severity=warning scripts/*.sh tests/*.sh
 
       - name: PSScriptAnalyzer (errors fail; warnings reported)
         shell: pwsh

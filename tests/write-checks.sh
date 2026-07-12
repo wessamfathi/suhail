@@ -6,7 +6,7 @@
 # the Progress table cannot gain columns, and both outputs use LF only.
 
 set -uo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")"
+cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 source ./helpers.sh
 
 WORK="$(mktemp -d)"
