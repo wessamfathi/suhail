@@ -18,7 +18,6 @@
 #   {"action":"await_approval","reason":"part_plan_approval","part_id":"part-1"}
 #   {"action":"complete"}
 #   {"action":"finished"}
-#   {"action":"noop","reason":"<text>"}
 
 set -euo pipefail
 
@@ -155,17 +154,12 @@ batch_directive() {
     return
   fi
 
-  # All executed, none pending verification-dispatch yet — verify the batch.
-  p="$(batch_first executed)"
+  # Executed parts await verification. A part still marked 'verifying' on a
+  # FRESH tick is an orphan (the verifying turn was interrupted) — the batch
+  # verify handler re-runs it, adopting completed artifacts when present.
+  p="$(batch_first executed verifying)"
   if [[ -n "$p" ]]; then
     printf '{"action":"start_batch_verifying"}\n'
-    return
-  fi
-
-  # Verifiers dispatched but results not yet processed by the orchestrator.
-  p="$(batch_first verifying)"
-  if [[ -n "$p" ]]; then
-    printf '{"action":"noop","reason":"verifiers in flight for batch"}\n'
     return
   fi
 
@@ -231,7 +225,13 @@ case "$run_phase" in
     ;;
 
   needs_user)
-    printf '{"action":"needs_user","part_id":"%s"}\n' "$current_part_id"
+    # JSON null (not the string "null" / "") when no part id is recorded —
+    # keeps both script families byte-identical on this defensive path.
+    if [[ -z "$current_part_id" || "$current_part_id" == "null" ]]; then
+      printf '{"action":"needs_user","part_id":null}\n'
+    else
+      printf '{"action":"needs_user","part_id":"%s"}\n' "$current_part_id"
+    fi
     ;;
 
   completed|complete)

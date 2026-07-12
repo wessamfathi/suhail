@@ -56,6 +56,14 @@ do_="$(mkpart origfiles)"
 printf '## Files changed\n- `fresh.md`\n' > "$do_/execution.md"
 printf '## Files changed\n- `stale1.md`\n- `stale2.md`\n' > "$do_/execution-attempt-2.orig.md"
 
+# blocker.md with a missing key must yield nulls, not a reader crash
+dm="$(mkpart missingkeys)"
+printf -- '---\nfrom: su-scout\noptions: ["Retry"]\n---\nNo severity here.\n' > "$dm/blocker.md"
+
+# single-element options list must stay a JSON array on every host
+ds="$(mkpart singleopt)"
+printf -- '---\nfrom: orchestrator\nseverity: blocker\noptions: ["Retry"]\n---\nOne option.\n' > "$ds/blocker.md"
+
 for lang in "${LANGS[@]}"; do
   assert_read_field "plain verdict"              "$lang" "$d"  '.review.verdict' '"clean"'
   assert_read_field "quoted verdict escapes"     "$lang" "$dq" '.review.verdict' '"\"clean\""'
@@ -70,15 +78,28 @@ for lang in "${LANGS[@]}"; do
   assert_read_field "CRLF blocker: options"      "$lang" "$dc" '.blocker.options' '["Retry","Skip"]'
   assert_read_field "latest attempt file wins"   "$lang" "$da" '.execution.files_changed_count' '3'
   assert_read_field "orig.md renames are ignored" "$lang" "$do_" '.execution.files_changed_count' '1'
+  assert_read_field "missing severity key -> null, no crash" "$lang" "$dm" '.blocker.severity' 'null'
+  assert_read_field "missing key: from still parsed"         "$lang" "$dm" '.blocker.from' '"su-scout"'
+  assert_read_field "single-option list stays an array"      "$lang" "$ds" '.blocker.options' '["Retry"]'
 done
 
 # --- parity: both readers byte-agree after jq normalization -----------------------
+# Exit codes and non-empty output are asserted first so a case where BOTH
+# readers crash can never pass as vacuous ""=="" parity.
 if [[ "$HAVE_PWSH" -eq 1 ]]; then
-  for dir in "$d" "$dq" "$dw" "$db" "$dl" "$dh" "$di" "$dc" "$da" "$do_"; do
-    sh_out="$(bash "$SCRIPTS_DIR/suhail-read.sh" "$dir" | jq -S -c .)"
-    ps_out="$(pwsh -NoProfile -File "$SCRIPTS_DIR/suhail-read.ps1" "$dir" | jq -S -c 'del(.part_dir)')"
-    sh_cmp="$(printf '%s' "$sh_out" | jq -S -c 'del(.part_dir)')"
-    assert_eq "reader parity: $(basename "$dir")" "$sh_cmp" "$ps_out"
+  for dir in "$d" "$dq" "$dw" "$db" "$dl" "$dh" "$di" "$dc" "$da" "$do_" "$dm" "$ds"; do
+    if ! sh_raw="$(bash "$SCRIPTS_DIR/suhail-read.sh" "$dir")"; then
+      fail "reader parity: $(basename "$dir")" "sh reader exited non-zero"; continue
+    fi
+    if ! ps_raw="$(pwsh -NoProfile -File "$SCRIPTS_DIR/suhail-read.ps1" "$dir")"; then
+      fail "reader parity: $(basename "$dir")" "ps1 reader exited non-zero"; continue
+    fi
+    if [[ -z "$sh_raw" || -z "$ps_raw" ]]; then
+      fail "reader parity: $(basename "$dir")" "empty reader output"; continue
+    fi
+    sh_cmp="$(printf '%s' "$sh_raw" | jq -S -c 'del(.part_dir)')"
+    ps_cmp="$(printf '%s' "$ps_raw" | jq -S -c 'del(.part_dir)')"
+    assert_eq "reader parity: $(basename "$dir")" "$sh_cmp" "$ps_cmp"
   done
 fi
 
