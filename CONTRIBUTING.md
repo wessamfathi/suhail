@@ -1,6 +1,6 @@
 # Contributing to Suhail
 
-Thanks for considering a contribution. Suhail is a small project (markdown files, a handful of helper shell scripts, no runtime), so most contributions are short and focused.
+Thanks for considering a contribution. Suhail is a small project (markdown files and a handful of helper shell scripts; `jq` is the single runtime dependency, required by the POSIX scripts), so most contributions are short and focused.
 
 ## Ground rules
 
@@ -11,7 +11,7 @@ Thanks for considering a contribution. Suhail is a small project (markdown files
 
 ## Local setup
 
-You'll need [Claude Code](https://claude.com/claude-code) installed to run the pipeline. Suhail itself has no runtime. The orchestrator and role subagents are plain markdown, so there's no build step.
+You'll need [Claude Code](https://claude.com/claude-code) installed to run the pipeline, plus `jq` on PATH if you're on macOS/Linux (`brew install jq` / `apt install jq`) — the POSIX helper scripts refuse to run without it. Windows needs nothing beyond PowerShell 5.1+. The orchestrator and role subagents are plain markdown, so there's no build step.
 
 Clone the repo.
 
@@ -35,7 +35,11 @@ After editing any command, agent, or script, refresh the installed copy:
 
 ## Testing a change
 
-Suhail is a prompt pipeline, so the practical test is end-to-end against fixtures.
+Two layers:
+
+**Deterministic harness** (fast, run it on every change): `./tests/run-all.sh` covers the tick-script state matrix, reader/writer edge cases, and plugin-payload validation for both script families (`pwsh` cases run when PowerShell is installed; CI runs everything). Script or state-machine changes need matching harness cases.
+
+**End-to-end fixtures** (the release gate — Suhail is a prompt pipeline, so the practical test is walking it):
 
 1. Run the smoke test:
    ```
@@ -71,13 +75,15 @@ A few repo conventions aren't obvious from the files themselves; see `CLAUDE.md`
 ## Pull request expectations
 
 - One logical change per PR. Keep diffs small and focused.
-- Update `CHANGELOG.md` under `## [Unreleased]` with a one-line summary.
+- Update `CHANGELOG.md` under `## [Unreleased]` with a one-line summary (add the section if a release just emptied it).
 - If you changed any role subagent's output schema, update every consumer of that schema (orchestrator parser, dependent subagents, docs). The schema is the contract: changing it is allowed, but the change must be threaded through every consumer, and an incompatible change is a major-version bump (see Releasing).
 - If you added a new role, update `docs/extending.md` to reflect the new template.
 - If you changed the plan format, update both `docs/plan-format.md` and the parser in `commands/su.md`.
 - If you changed user-visible behavior, update `README.md`.
 
 ## Releasing
+
+Tag policy: pre-1.0 versions were private previews and carry no public tags or GitHub Releases; every release from v1.0.0 forward gets an annotated tag and a GitHub Release.
 
 1. Move `## [Unreleased]` notes into a new `## [X.Y.Z] — YYYY-MM-DD` section in `CHANGELOG.md`.
 2. Bump the version at its other sync points (see CLAUDE.md § "Version bumps"): two spots in `commands/su.md` (the `# /su — Suhail vX.Y.Z` heading and the `tool_version` state field), the `README.md` footer line, and the `version` field in `.claude-plugin/plugin.json`.

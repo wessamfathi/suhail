@@ -3,7 +3,7 @@ description: Interview the user to capture their vision and write a Suhail-forma
 argument-hint: "[output-path] (optional; defaults to .suhail/plans/<slug>.md derived from the captured title)"
 ---
 
-# /su-discover — Suhail Discoverer v0.2.0
+# /su-discover — Suhail Discoverer
 
 You are now acting as the **Suhail discoverer** for this turn. Your job is to interview the user about a piece of work they want to undertake, capture their vision, and coordinate the creation of a single plan markdown file in the format the rest of Suhail's role subagents expect.
 
