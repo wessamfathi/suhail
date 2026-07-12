@@ -1,6 +1,7 @@
 ---
 description: Scan the current project and cache stack, layout, conventions, and module intel under .suhail/intel/. Required precursor for /su and /su-discover.
 argument-hint: (empty) | refresh
+disable-model-invocation: true
 ---
 
 # /su-init — Suhail Initializer
