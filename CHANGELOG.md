@@ -26,7 +26,7 @@ The first public release: the Suhail rename plus a full public-release hardening
 ### Added
 - **Committed regression harness (`tests/`)** covering the tick-script state matrix, reader/writer edge cases, and plugin-payload validation for both script families — plus CI (GitHub Actions: harness on bash and pwsh, shellcheck, PSScriptAnalyzer, forbidden-artifact check; SHA-pinned, least-privilege).
 - **Security model documented** (README + `SECURITY.md`): plan files are code-equivalent — run only plans you trust; executer command governance (destructive/network commands need plan justification; every command recorded); standing data-vs-instructions lines in the pipeline agents' prompts.
-- Community files: `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`, bug-report issue form, PR template, `AGENTS.md`.
+- Community files: `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`, bug-report issue form, PR template.
 
 ### Changed
 - **Project renamed: Northstar → Suhail.** "Northstar" collided with several adjacent projects in the AI-agent and dev-tool space, so the project is rebranded to **Suhail** — the Arabic name for Canopus, the guiding star of Arab navigators. Same guiding-star identity, collision-free name. Everything else about the pipeline is unchanged; this release is the rename plus the version reset to 1.0.0 (the state-dir move is a breaking change, per the project's IPC-stability rule).
