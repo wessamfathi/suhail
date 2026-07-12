@@ -6,13 +6,16 @@
 #
 # Exit codes:
 #   0  directive JSON emitted to stdout
-#   1  state.json missing, unreadable, or unparseable
+#   1  state.json missing, unreadable, unparseable, or lacking a parts array
 #   2  unknown run_phase encountered
+#   3  unroutable Part status in the current batch (fail-closed guard —
+#      an unknown status must never be reported as batch completion)
 #
 # Output: a single-line JSON object, e.g.:
 #   {"action":"dispatch_scout","part_id":"part-1"}
-#   {"action":"await_approval"}
+#   {"action":"await_approval","reason":"part_plan_approval","part_id":"part-1"}
 #   {"action":"complete"}
+#   {"action":"finished"}
 #   {"action":"noop","reason":"<text>"}
 
 [CmdletBinding()]
@@ -39,13 +42,15 @@ foreach ($arg in $RemainingArgs) {
         Write-Output ""
         Write-Output "Exit codes:"
         Write-Output "  0  directive JSON emitted to stdout"
-        Write-Output "  1  state.json missing, unreadable, or unparseable"
+        Write-Output "  1  state.json missing, unreadable, unparseable, or lacking a parts array"
         Write-Output "  2  unknown run_phase encountered"
+        Write-Output "  3  unroutable Part status in the current batch (fail-closed guard)"
         Write-Output ""
         Write-Output "Output: a single-line JSON object, e.g.:"
         Write-Output '  {"action":"dispatch_scout","part_id":"part-1"}'
-        Write-Output '  {"action":"await_approval"}'
+        Write-Output '  {"action":"await_approval","reason":"part_plan_approval","part_id":"part-1"}'
         Write-Output '  {"action":"complete"}'
+        Write-Output '  {"action":"finished"}'
         Write-Output '  {"action":"noop","reason":"<text>"}'
         exit 0
     } elseif ($arg.StartsWith("-")) {
@@ -82,6 +87,11 @@ try {
     exit 1
 }
 
+if ($null -eq $stateJson.parts -or $stateJson.parts -isnot [System.Array]) {
+    [Console]::Error.WriteLine("error: state file has no parts array: $StatePath")
+    exit 1
+}
+
 $runPhase       = if ($null -ne $stateJson.run_phase)        { $stateJson.run_phase }        else { "unknown" }
 $currentPartId  = if ($null -ne $stateJson.current_part_id)  { $stateJson.current_part_id }  else { $null }
 $batchAutoApprove = if ($null -ne $stateJson.batch_auto_approve) { $stateJson.batch_auto_approve } else { $false }
@@ -96,19 +106,6 @@ $stateDir = Split-Path -Parent (Resolve-Path $StatePath)
 function Brief-Exists {
     param([string]$PartId)
     return Test-Path (Join-Path $stateDir "parts\$PartId\brief.md")
-}
-
-function Execution-Exists {
-    param([string]$PartId)
-    $execDir = Join-Path $stateDir "parts\$PartId"
-    if (-not (Test-Path $execDir)) { return $false }
-    $matches = Get-ChildItem -Path $execDir -Filter "execution*.md" -ErrorAction SilentlyContinue
-    return ($null -ne $matches -and $matches.Count -gt 0)
-}
-
-function Review-Exists {
-    param([string]$PartId)
-    return Test-Path (Join-Path $stateDir "parts\$PartId\review.md")
 }
 
 # ---------------------------------------------------------------------------
@@ -157,6 +154,15 @@ function Batch-Directive {
         return
     }
 
+    # Approved-but-ungated Parts: surface the per-Part plan-approval gate.
+    # (Distinct reason from the batch master_plan_approval gate so the
+    # orchestrator can route it — see su.md's await_approval handlers.)
+    $p = Batch-First @("awaiting_plan_approval")
+    if ($null -ne $p) {
+        Write-Output "{`"action`":`"await_approval`",`"reason`":`"part_plan_approval`",`"part_id`":`"$p`"}"
+        return
+    }
+
     # All executed, none pending verification-dispatch yet — verify the batch.
     $p = Batch-First @("executed")
     if ($null -ne $p) {
@@ -169,6 +175,20 @@ function Batch-Directive {
     if ($null -ne $p) {
         Write-Output '{"action":"noop","reason":"verifiers in flight for batch"}'
         return
+    }
+
+    # Fail closed: only positively-terminal Parts may complete the batch.
+    # Any status the queries above did not route must be an error — a typo or
+    # future status addition must never masquerade as batch completion.
+    $batch = @()
+    if ($null -ne $stateJson.current_batch) { $batch = @($stateJson.current_batch) }
+    foreach ($part in $stateJson.parts) {
+        if ($batch.Count -eq 0 -or $batch -contains $part.id) {
+            if ($part.status -ne "completed" -and $part.status -ne "skipped") {
+                [Console]::Error.WriteLine("error: $($part.id) has unroutable status $($part.status)")
+                exit 3
+            }
+        }
     }
 
     # Every batch part is completed or skipped — advance the level.
@@ -186,13 +206,9 @@ switch ($runPhase) {
     }
 
     "batch_scouting" {
-        $pendingPart = $null
-        foreach ($part in $stateJson.parts) {
-            if ($part.status -eq "scouting" -or $part.status -eq "pending") {
-                $pendingPart = $part.id
-                break
-            }
-        }
+        # First part in the CURRENT BATCH still needing a scout/brief. Parts
+        # at future levels are pending too — they must not be scouted early.
+        $pendingPart = Batch-First @("scouting", "pending")
 
         if ($null -eq $pendingPart) {
             Write-Output '{"action":"await_approval","reason":"all parts scouted"}'
@@ -212,24 +228,18 @@ switch ($runPhase) {
         Batch-Directive
     }
 
-    "verifying" {
-        if ($null -eq $currentPartId -or $currentPartId -eq "null" -or $currentPartId -eq "") {
-            Write-Output '{"action":"noop","reason":"no current_part_id in verifying phase"}'
-            exit 0
-        }
-        if (Review-Exists $currentPartId) {
-            Write-Output "{`"action`":`"advance_after_review`",`"part_id`":`"$currentPartId`"}"
-        } else {
-            Write-Output "{`"action`":`"dispatch_verifier`",`"part_id`":`"$currentPartId`"}"
-        }
-    }
-
     "needs_user" {
         Write-Output "{`"action`":`"needs_user`",`"part_id`":`"$currentPartId`"}"
     }
 
     { $_ -eq "completed" -or $_ -eq "complete" } {
         Write-Output '{"action":"complete"}'
+    }
+
+    "finished" {
+        # Terminal: the run already completed cleanly. The orchestrator says
+        # so in one sentence and ends the turn — no blocker, no re-dispatch.
+        Write-Output '{"action":"finished"}'
     }
 
     "aborted" {
