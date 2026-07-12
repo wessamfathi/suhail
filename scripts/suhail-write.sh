@@ -203,6 +203,9 @@ while IFS= read -r row; do
   p_group="$(printf '%s' "$row" | jqr '.group // ""')"
   p_title="$(printf '%s' "$row" | jqr '.title // ""')"
   p_status="$(printf '%s' "$row" | jqr '.status // "pending"')"
+  # escape '|' so a title/group can never add columns to the table
+  p_group="${p_group//|/\\|}"
+  p_title="${p_title//|/\\|}"
   p_emoji="$(status_emoji "$p_status")"
   progress_rows="${progress_rows}| ${part_count} | ${p_level} | ${p_group} | ${p_title} | ${p_emoji} ${p_status} |
 "
