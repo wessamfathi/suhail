@@ -9,9 +9,9 @@
 # artifacts are absent from the tree.
 
 set -uo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")"
+cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 source ./helpers.sh
-cd "$REPO_ROOT"
+cd "$REPO_ROOT" || exit 1
 
 # --- frontmatter YAML ×14 -------------------------------------------------------
 if python3 -c 'import yaml' 2>/dev/null; then

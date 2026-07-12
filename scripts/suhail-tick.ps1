@@ -92,7 +92,6 @@ if ($null -eq $stateJson.parts -or $stateJson.parts -isnot [System.Array]) {
 
 $runPhase       = if ($null -ne $stateJson.run_phase)        { $stateJson.run_phase }        else { "unknown" }
 $currentPartId  = if ($null -ne $stateJson.current_part_id)  { $stateJson.current_part_id }  else { $null }
-$batchAutoApprove = if ($null -ne $stateJson.batch_auto_approve) { $stateJson.batch_auto_approve } else { $false }
 $aborted        = if ($null -ne $stateJson.aborted)          { $stateJson.aborted }          else { $false }
 
 $stateDir = Split-Path -Parent (Resolve-Path $StatePath)

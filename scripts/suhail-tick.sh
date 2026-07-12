@@ -84,7 +84,6 @@ fi
 
 run_phase="$(jq -r '.run_phase // "unknown"' "$STATE_FILE")"
 current_part_id="$(jq -r '.current_part_id // "null"' "$STATE_FILE")"
-batch_auto_approve="$(jq -r '.batch_auto_approve // false' "$STATE_FILE")"
 aborted="$(jq -r '.aborted // false' "$STATE_FILE")"
 
 # derive the directory containing state.json so artifact paths are relative to it
