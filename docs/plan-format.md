@@ -1,6 +1,6 @@
 # Plan format
 
-Northstar parses any markdown file matching this minimal contract. There is no required frontmatter, no YAML, no special section names — just a few conventions on headings and one optional dependency declaration.
+Suhail parses any markdown file matching this minimal contract. There is no required frontmatter, no YAML, no special section names — just a few conventions on headings and one optional dependency declaration.
 
 ## Required
 
@@ -14,7 +14,7 @@ Each Part is an H3 heading of the form:
 
 - `<N>` is a positive integer. It becomes the Part id as `part-<N>` (so `### Part 2 — Foo` → `part-2`).
 - The separator is an **em-dash** (`—`, Unicode U+2014) with one space on each side. ASCII hyphen-minus (`-`) is **not** accepted; this disambiguates Part headings from arbitrary H3s that happen to use a hyphen.
-- `<Title>` is everything after the em-dash to end of line. Used in STATUS.md and Northstar's prompts.
+- `<Title>` is everything after the em-dash to end of line. Used in STATUS.md and Suhail's prompts.
 
 A plan with no `### Part N —` headings is invalid; INIT will produce an empty parts list and refuse to start.
 
@@ -60,7 +60,7 @@ Cycles are not detected automatically at parse time — if you write a cycle, IN
 
 A `Verification` subheading or paragraph inside a Part is treated like any other body content — it's passed verbatim to the scout. The scout is expected to translate it into concrete commands the executer can run.
 
-The downstream Northstar pipeline does not parse Verification content — it's a hint to the scout, not a directive to the orchestrator.
+The downstream Suhail pipeline does not parse Verification content — it's a hint to the scout, not a directive to the orchestrator.
 
 ## Body content
 
@@ -123,9 +123,9 @@ After INIT this parses to:
 | part-2 | Phase 1 — Database | Migrate existing settings | [1] |
 | part-3 | Phase 2 — API | Read endpoint | [1] |
 
-Northstar will start with Part 1. Once it completes, both Part 2 and Part 3 become eligible (only Part 1 was their prerequisite); Northstar picks the lower number (Part 2) next.
+Suhail will start with Part 1. Once it completes, both Part 2 and Part 3 become eligible (only Part 1 was their prerequisite); Suhail picks the lower number (Part 2) next.
 
-## Things Northstar does NOT parse
+## Things Suhail does NOT parse
 
 - Tables — markdown tables in the body are content for the scout, not structured data.
 - Frontmatter — any YAML/JSON frontmatter at the top of the file is ignored. (Reserved for future use.)
@@ -141,6 +141,6 @@ If you already have a plan file using a different separator (e.g. `### Part 1: F
 
 ## Validation
 
-To check whether a plan parses cleanly without starting a run, you can `/ns <plan-path>` then choose "Show parsed structure" at the INIT prompt, then `/ns-abort`. This is a non-destructive way to validate.
+To check whether a plan parses cleanly without starting a run, you can `/su <plan-path>` then choose "Show parsed structure" at the INIT prompt, then `/su-abort`. This is a non-destructive way to validate.
 
-A future release may add `/ns validate <plan-path>` as a dedicated read-only check.
+A future release may add `/su validate <plan-path>` as a dedicated read-only check.

@@ -1,6 +1,6 @@
 # Decisions log
 
-A reverse-chronological record of the major design decisions behind Northstar, with rationale. The PR description is the conversation; this file is the conclusion.
+A reverse-chronological record of the major design decisions behind Suhail, with rationale. The PR description is the conversation; this file is the conclusion.
 
 Append new entries at the top. Each entry has a date, a one-line headline, what was decided, and why.
 
@@ -8,7 +8,7 @@ Append new entries at the top. Each entry has a date, a one-line headline, what 
 
 ## 2026-05-21 — Orchestrator auto-commits each Part atomically (on by default)
 
-**Decided:** after a Part is verified clean and marked `completed`, the orchestrator creates exactly one git commit containing only that Part's `files_changed`. On by default (`auto_commit: true`); opt out per run with the `no-commit` argument. Applies in all modes. The orchestrator never pushes, deploys, amends, or force-pushes, and a failed commit raises an orchestrator blocker instead of retrying/amending. The **ns-executer** still never commits — committing is solely the orchestrator's job, at the verified-clean boundary.
+**Decided:** after a Part is verified clean and marked `completed`, the orchestrator creates exactly one git commit containing only that Part's `files_changed`. On by default (`auto_commit: true`); opt out per run with the `no-commit` argument. Applies in all modes. The orchestrator never pushes, deploys, amends, or force-pushes, and a failed commit raises an orchestrator blocker instead of retrying/amending. The **su-executer** still never commits — committing is solely the orchestrator's job, at the verified-clean boundary.
 
 **Why:** an unattended (autorun) run previously left all Parts as one undifferentiated working-tree diff, making review, partial push, and selective rollback hard. One commit per verified Part maps the git history onto the plan's structure: each commit is reviewable in isolation, pushable independently, and revertable without disturbing other Parts. Tying the commit to the verified-clean transition (not to execution) means only Parts that passed review/audit enter history.
 
@@ -18,17 +18,17 @@ Append new entries at the top. Each entry has a date, a one-line headline, what 
 
 ## 2026-05-20 — Orchestrator IO (state write + artifact read) moved to shell scripts
 
-**Decided:** `northstar-write.{ps1,sh}` handles atomic `state.json` writes and STATUS.md rendering; `northstar-read.{ps1,sh}` handles artifact parsing (reading part-dir markdown files and returning a structured JSON summary). The orchestrator invokes these as external scripts via stdin/stdout, not as agent dispatches.
+**Decided:** `suhail-write.{ps1,sh}` handles atomic `state.json` writes and STATUS.md rendering; `suhail-read.{ps1,sh}` handles artifact parsing (reading part-dir markdown files and returning a structured JSON summary). The orchestrator invokes these as external scripts via stdin/stdout, not as agent dispatches.
 
-**Why:** both operations are purely mechanical — JSON field extraction, string substitution, atomic file write, template rendering. No reasoning or judgment is required. Implementing them as agents would waste a full subagent context slot (and incur LLM latency) on a deterministic transform. Scripts execute synchronously and return a clear exit code, letting the orchestrator treat a non-zero exit as a hard blocker without a dispatch-verify cycle. The STATUS.md template previously inline in `commands/ns.md` is now owned by `northstar-write`, which reads `tool_version` from the incoming state JSON at runtime — eliminating a third version-sync point from the release checklist.
+**Why:** both operations are purely mechanical — JSON field extraction, string substitution, atomic file write, template rendering. No reasoning or judgment is required. Implementing them as agents would waste a full subagent context slot (and incur LLM latency) on a deterministic transform. Scripts execute synchronously and return a clear exit code, letting the orchestrator treat a non-zero exit as a hard blocker without a dispatch-verify cycle. The STATUS.md template previously inline in `commands/su.md` is now owned by `suhail-write`, which reads `tool_version` from the incoming state JSON at runtime — eliminating a third version-sync point from the release checklist.
 
-**Considered alternatives:** an `ns-writer` subagent was considered during the pre-run analysis; rejected because the agent dispatch overhead and async return pattern is heavier than the task warrants, and because adding an agent for a deterministic operation would contradict the principle that agents are reserved for tasks requiring LLM judgment (stack discovery, code generation, review). The blocker that surfaced during the original ns-writer design attempt confirmed the approach was wrong-sized for the problem.
+**Considered alternatives:** an `su-writer` subagent was considered during the pre-run analysis; rejected because the agent dispatch overhead and async return pattern is heavier than the task warrants, and because adding an agent for a deterministic operation would contradict the principle that agents are reserved for tasks requiring LLM judgment (stack discovery, code generation, review). The blocker that surfaced during the original su-writer design attempt confirmed the approach was wrong-sized for the problem.
 
 ---
 
 ## 2026-05-20 — Interview stays in the slash command; scan and author move to agents
 
-**Decided:** the multi-turn interview logic remains in `commands/ns-discover.md` (top-level slash command) because `AskUserQuestion` and cross-turn context require the top-level session. Phase 0 (silent grounding scan) moves to `ns-discover-scout`: read-only, one-shot, uses model `claude-haiku-4-5-20251001`, returns a structured summary as its response rather than writing a file — appropriate because it produces no artifact the user needs to inspect or retry, only context the command needs for the interview. Phase 5 (plan-writing) moves to `ns-discover-planner`: write-only, one-shot, consumes the answers file at `.northstar/discover/<slug>.answers.md` — same files-as-IPC contract as all other Northstar roles, keeping the command's context bounded and the plan-writing step independently retryable.
+**Decided:** the multi-turn interview logic remains in `commands/su-discover.md` (top-level slash command) because `AskUserQuestion` and cross-turn context require the top-level session. Phase 0 (silent grounding scan) moves to `su-discover-scout`: read-only, one-shot, uses model `claude-haiku-4-5-20251001`, returns a structured summary as its response rather than writing a file — appropriate because it produces no artifact the user needs to inspect or retry, only context the command needs for the interview. Phase 5 (plan-writing) moves to `su-discover-planner`: write-only, one-shot, consumes the answers file at `.suhail/discover/<slug>.answers.md` — same files-as-IPC contract as all other Suhail roles, keeping the command's context bounded and the plan-writing step independently retryable.
 
 **Why the interview itself cannot be a subagent:** subagents are one-shot; a multi-turn interview requires holding context across `AskUserQuestion` round-trips, which only the top-level session supports.
 
@@ -48,30 +48,30 @@ Combined with the new "fail-loud preflight" in each role agent (which refuses to
 
 ## 2026-05-14 — Orchestrator lives in the slash command body, not as a subagent
 
-**Decided:** the orchestrator state machine + dispatch logic lives in `commands/northstar.md` (and is mirrored by reference from `commands/ns.md`). It is NOT a Claude Code subagent.
+**Decided:** the orchestrator state machine + dispatch logic lives in `commands/suhail.md` (and is mirrored by reference from `commands/su.md`). It is NOT a Claude Code subagent.
 
-**Why:** Claude Code does not allow a subagent invoked via the Agent tool to spawn further subagents. The v0.1.0 design placed the orchestrator at `agents/northstar.md` expecting it to dispatch the five role subagents. In practice, `/ns` would invoke the orchestrator as a subagent, which then could not actually call researcher/planner/etc. — sessions fell back to driving the pipeline from the top level, defeating the design.
+**Why:** Claude Code does not allow a subagent invoked via the Agent tool to spawn further subagents. The v0.1.0 design placed the orchestrator at `agents/suhail.md` expecting it to dispatch the five role subagents. In practice, `/su` would invoke the orchestrator as a subagent, which then could not actually call researcher/planner/etc. — sessions fell back to driving the pipeline from the top level, defeating the design.
 
-By putting the orchestrator into the slash command body, invoking `/ns` injects the orchestrator prompt into the **top-level** session. The top-level session has the Agent tool and dispatches the five role subagents one level deep. Pipeline tree: top-level → role subagent. Legal.
+By putting the orchestrator into the slash command body, invoking `/su` injects the orchestrator prompt into the **top-level** session. The top-level session has the Agent tool and dispatches the five role subagents one level deep. Pipeline tree: top-level → role subagent. Legal.
 
 **Cost:** the orchestrator prompt (~600 lines, ~15K tokens) is in the top-level context per invocation. Acceptable — see `architecture.md` § Context window impact.
 
 **Considered alternatives:**
-- Duplicate the orchestrator body across `ns.md` and `northstar.md`. Rejected — maintenance burden.
-- Have `ns.md` symlink to `northstar.md`. Rejected — symlinks are awkward on Windows installs.
+- Duplicate the orchestrator body across `su.md` and `suhail.md`. Rejected — maintenance burden.
+- Have `su.md` symlink to `suhail.md`. Rejected — symlinks are awkward on Windows installs.
 - Keep the v0.1.0 fallback (top-level session implicitly playing orchestrator). Rejected — the fallback was implicit and undocumented; making it explicit is better.
 
-**Chosen:** `commands/ns.md` reads `commands/northstar.md` at runtime and follows it. Single source of truth in `northstar.md`. *(Update as of v0.7.2: `commands/northstar.md` was removed and `commands/ns.md` became the single source of truth.)*
+**Chosen:** `commands/su.md` reads `commands/suhail.md` at runtime and follows it. Single source of truth in `suhail.md`. *(Update as of v0.7.2: `commands/suhail.md` was removed and `commands/su.md` became the single source of truth.)*
 
 ---
 
 ## 2026-05-14 — Domain knowledge flows through one channel only
 
-**Decided:** the ns-verifier's audit pass is intentionally generic — a language-agnostic checklist (auth, authorization, injection, secrets, validation, deep links). Project-specific risks reach it only through the ns-scout's `Domain risks worth flagging to auditor` section in `brief.md`.
+**Decided:** the su-verifier's audit pass is intentionally generic — a language-agnostic checklist (auth, authorization, injection, secrets, validation, deep links). Project-specific risks reach it only through the su-scout's `Domain risks worth flagging to auditor` section in `brief.md`.
 
-**Why:** otherwise every new domain requires forking the audit prompt. With a single hint channel, the same audit pass works for an Expo/Supabase app, a Rust CLI, a Python data pipeline — the ns-scout discovers what's at stake and tells the auditor.
+**Why:** otherwise every new domain requires forking the audit prompt. With a single hint channel, the same audit pass works for an Expo/Supabase app, a Rust CLI, a Python data pipeline — the su-scout discovers what's at stake and tells the auditor.
 
-**Constraint this places on contributors:** never add domain-specific rules to the audit pass in `agents/ns-verifier.md`. If you find a recurring risk that's project-specific, surface it as a recommendation in `docs/extending.md` for the ns-scout's risk-detection heuristics; do not bake it into the verifier.
+**Constraint this places on contributors:** never add domain-specific rules to the audit pass in `agents/su-verifier.md`. If you find a recurring risk that's project-specific, surface it as a recommendation in `docs/extending.md` for the su-scout's risk-detection heuristics; do not bake it into the verifier.
 
 ---
 
@@ -106,9 +106,9 @@ If they shared findings, the second one would defer to the first and miss things
 
 ## 2026-05-14 — One Part per tick, hard pause at Part boundaries
 
-**Decided:** each `/ns` invocation in interactive mode advances state by exactly one Part. After each Part completes, the orchestrator ends its turn with an AskUserQuestion ("Continue to Part M?"). No silent advancement.
+**Decided:** each `/su` invocation in interactive mode advances state by exactly one Part. After each Part completes, the orchestrator ends its turn with an AskUserQuestion ("Continue to Part M?"). No silent advancement.
 
-**Why:** the user (and stakeholders) explicitly required per-Part user approval. Every Part is a checkpoint. This is the system's most important property in interactive mode — it's the reason a user can trust Northstar with a 50-Part plan.
+**Why:** the user (and stakeholders) explicitly required per-Part user approval. Every Part is a checkpoint. This is the system's most important property in interactive mode — it's the reason a user can trust Suhail with a 50-Part plan.
 
 **Escape hatch:** `run-to <part-id>` bypasses per-Part pauses (and plan approval) until the target is reached. Designed for unattended runs. A 20-Part safety cap forces an interactive checkpoint even mid-target so unattended runs cannot go arbitrarily long.
 
@@ -116,9 +116,9 @@ If they shared findings, the second one would defer to the first and miss things
 
 ## 2026-05-14 — Stack-agnostic role subagents
 
-**Decided:** none of the role subagents (ns-scout, ns-executer, ns-verifier) contain language-specific or framework-specific knowledge. The ns-scout discovers stack conventions at runtime by reading CLAUDE.md / AGENTS.md / README / manifests and surfaces them in `brief.md`.
+**Decided:** none of the role subagents (su-scout, su-executer, su-verifier) contain language-specific or framework-specific knowledge. The su-scout discovers stack conventions at runtime by reading CLAUDE.md / AGENTS.md / README / manifests and surfaces them in `brief.md`.
 
-**Why:** the alternative is per-language Northstar variants, which immediately fragment. The runtime-discovery design lets one Northstar install handle TypeScript, Python, Rust, Go, anything — as long as the target project documents itself, the pipeline adapts.
+**Why:** the alternative is per-language Suhail variants, which immediately fragment. The runtime-discovery design lets one Suhail install handle TypeScript, Python, Rust, Go, anything — as long as the target project documents itself, the pipeline adapts.
 
 **Constraint this places on contributors:** never add conditional logic based on detected language to a role subagent's prompt. If a role needs language-specific behavior, it should derive it from `brief.md`'s stack-conventions section.
 
@@ -128,7 +128,7 @@ If they shared findings, the second one would defer to the first and miss things
 
 **Decided:** `install.sh` and `install.ps1` default to `~/.claude/`. `--project <path>` installs into `<path>/.claude/` instead.
 
-**Why:** user-level means one install works across every repo on the machine. Most users want Northstar everywhere. Project-level is for two cases: (1) developing Northstar itself (install into the Northstar repo so your working copy overrides any user-level install), (2) pinning a specific version to a specific repo.
+**Why:** user-level means one install works across every repo on the machine. Most users want Suhail everywhere. Project-level is for two cases: (1) developing Suhail itself (install into the Suhail repo so your working copy overrides any user-level install), (2) pinning a specific version to a specific repo.
 
 **`.gitignore` auto-edit is opt-in.** The installer never modifies a target repo's `.gitignore` unless explicitly told to (`--gitignore` / `-Gitignore`). Surprise file modifications are bad form.
 
@@ -158,16 +158,16 @@ This also means a run can be aborted at any time without contaminating the user'
 
 **Decided:** MIT license. No telemetry. v1 commitment.
 
-**Why:** Northstar is a thin coordinator running locally in Claude Code. Telemetry adds privacy concerns, network dependencies, and trust friction for a tool that's supposed to be inspectable. The whole point of the artifacts-on-disk design is "you can see everything Northstar is doing"; adding a phone-home would contradict that.
+**Why:** Suhail is a thin coordinator running locally in Claude Code. Telemetry adds privacy concerns, network dependencies, and trust friction for a tool that's supposed to be inspectable. The whole point of the artifacts-on-disk design is "you can see everything Suhail is doing"; adding a phone-home would contradict that.
 
 ---
 
 ## 2026-07-02 — Plugin-only distribution (supersedes 2026-05-14 install-script decision)
 
-**Decided:** Northstar distributes solely as a Claude Code plugin. The repo doubles as its own marketplace (`.claude-plugin/marketplace.json` + `plugin.json`). Install is `/plugin marketplace add wessamfathi/northstar` then `/plugin install northstar@northstar`. The `scripts/install.{sh,ps1}` copy-installers were removed.
+**Decided:** Suhail distributes solely as a Claude Code plugin. The repo doubles as its own marketplace (`.claude-plugin/marketplace.json` + `plugin.json`). Install is `/plugin marketplace add wessamfathi/suhail` then `/plugin install suhail@suhail`. The `scripts/install.{sh,ps1}` copy-installers were removed.
 
 **Why:** the plugin model is native, versioned, self-updating, and requires no file-copy logic to maintain across POSIX/PowerShell. It bundles `commands/`, `agents/`, and `scripts/` as-is and exposes them via `${CLAUDE_PLUGIN_ROOT}`, which the script-path lookup checks first. The two installers were duplicated maintenance surface (two shells, `--project`/`--force`/`--gitignore` flags, stale-file cleanup) that the plugin system now handles.
 
-**What this supersedes:** the 2026-05-14 "User-level install by default, project-level optional" decision — there are no install scripts to have a default scope. The `.gitignore` auto-edit convenience is also gone; users add `.northstar/` to their target repo's `.gitignore` manually (README documents this).
+**What this supersedes:** the 2026-05-14 "User-level install by default, project-level optional" decision — there are no install scripts to have a default scope. The `.gitignore` auto-edit convenience is also gone; users add `.suhail/` to their target repo's `.gitignore` manually (README documents this).
 
-**Trade-off:** drops support for Claude Code versions without plugin support. Acceptable — plugin support is broadly available, and the manual project/user-copy lookup steps remain in `commands/ns.md` for anyone who copies the files by hand.
+**Trade-off:** drops support for Claude Code versions without plugin support. Acceptable — plugin support is broadly available, and the manual project/user-copy lookup steps remain in `commands/su.md` for anyone who copies the files by hand.

@@ -1,8 +1,8 @@
-# northstar-tick.ps1 — read-only state inspector for Northstar.
+# suhail-tick.ps1 — read-only state inspector for Suhail.
 #
 # Usage:
-#   northstar-tick.ps1 <path/to/state.json>
-#   northstar-tick.ps1 --help
+#   suhail-tick.ps1 <path/to/state.json>
+#   suhail-tick.ps1 --help
 #
 # Exit codes:
 #   0  directive JSON emitted to stdout
@@ -31,11 +31,11 @@ $StatePath = ""
 
 foreach ($arg in $RemainingArgs) {
     if ($arg -eq "-h" -or $arg -eq "--help") {
-        Write-Output "northstar-tick.ps1 — read-only state inspector for Northstar."
+        Write-Output "suhail-tick.ps1 — read-only state inspector for Suhail."
         Write-Output ""
         Write-Output "Usage:"
-        Write-Output "  northstar-tick.ps1 <path/to/state.json>"
-        Write-Output "  northstar-tick.ps1 --help"
+        Write-Output "  suhail-tick.ps1 <path/to/state.json>"
+        Write-Output "  suhail-tick.ps1 --help"
         Write-Output ""
         Write-Output "Exit codes:"
         Write-Output "  0  directive JSON emitted to stdout"
@@ -60,7 +60,7 @@ foreach ($arg in $RemainingArgs) {
 }
 
 if ($StatePath -eq "") {
-    [Console]::Error.WriteLine("error: usage: northstar-tick.ps1 <path/to/state.json>")
+    [Console]::Error.WriteLine("error: usage: suhail-tick.ps1 <path/to/state.json>")
     exit 1
 }
 

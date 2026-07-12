@@ -1,15 +1,15 @@
-# northstar-clean.ps1 — remove Northstar run artefacts from the current directory.
+# suhail-clean.ps1 — remove Suhail run artefacts from the current directory.
 #
 # Usage:
-#   northstar-clean.ps1
-#   northstar-clean.ps1 --help
+#   suhail-clean.ps1
+#   suhail-clean.ps1 --help
 #
 # Exit codes:
 #   0  cleanup complete (idempotent — no error if nothing to remove)
 #   1  unknown flag passed
 #
 # Output:
-#   Removes .northstar/ directory and any .northstar-*.txt marker files
+#   Removes .suhail/ directory and any .suhail-*.txt marker files
 #   found in the current working directory. Safe to run multiple times.
 
 [CmdletBinding()]
@@ -26,18 +26,18 @@ $ErrorActionPreference = "Stop"
 
 foreach ($arg in $RemainingArgs) {
     if ($arg -eq "-h" -or $arg -eq "--help") {
-        Write-Output "northstar-clean.ps1 — remove Northstar run artefacts from the current directory."
+        Write-Output "suhail-clean.ps1 — remove Suhail run artefacts from the current directory."
         Write-Output ""
         Write-Output "Usage:"
-        Write-Output "  northstar-clean.ps1"
-        Write-Output "  northstar-clean.ps1 --help"
+        Write-Output "  suhail-clean.ps1"
+        Write-Output "  suhail-clean.ps1 --help"
         Write-Output ""
         Write-Output "Exit codes:"
         Write-Output "  0  cleanup complete (idempotent — no error if nothing to remove)"
         Write-Output "  1  unknown flag passed"
         Write-Output ""
         Write-Output "Output:"
-        Write-Output "  Removes .northstar/ directory and any .northstar-*.txt marker files"
+        Write-Output "  Removes .suhail/ directory and any .suhail-*.txt marker files"
         Write-Output "  found in the current working directory. Safe to run multiple times."
         exit 0
     } elseif ($arg.StartsWith("-")) {
@@ -53,7 +53,7 @@ foreach ($arg in $RemainingArgs) {
 # cleanup
 # ---------------------------------------------------------------------------
 
-Remove-Item -Recurse -Force .northstar -ErrorAction SilentlyContinue
-Get-ChildItem -Path . -Filter ".northstar-*.txt" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force .suhail -ErrorAction SilentlyContinue
+Get-ChildItem -Path . -Filter ".suhail-*.txt" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 
 exit 0

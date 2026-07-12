@@ -1,10 +1,10 @@
 {
-  "name": "northstar",
+  "name": "suhail",
   "description": "Generic plan-orchestration pipeline for Claude Code — walks any structured plan file to completion via scout/executer/verifier subagents with state persistence and per-Part pauses.",
-  "version": "0.15.0",
+  "version": "1.0.0",
   "author": { "name": "wessamfathi", "email": "wessam@lana.games" },
-  "homepage": "https://github.com/wessamfathi/northstar",
-  "repository": "https://github.com/wessamfathi/northstar",
+  "homepage": "https://github.com/wessamfathi/suhail",
+  "repository": "https://github.com/wessamfathi/suhail",
   "license": "MIT",
   "keywords": ["orchestration", "planning", "agents", "pipeline", "workflow"]
 }
