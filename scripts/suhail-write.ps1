@@ -1,8 +1,8 @@
-# northstar-write.ps1 — atomic state writer and STATUS.md renderer for Northstar.
+# suhail-write.ps1 — atomic state writer and STATUS.md renderer for Suhail.
 #
 # Usage:
-#   northstar-write.ps1 <path/to/state.json>    # JSON payload on stdin
-#   northstar-write.ps1 --help
+#   suhail-write.ps1 <path/to/state.json>    # JSON payload on stdin
+#   suhail-write.ps1 --help
 #
 # Exit codes:
 #   0  state.json and STATUS.md written successfully
@@ -33,11 +33,11 @@ $StatePath = ""
 
 foreach ($arg in $RemainingArgs) {
     if ($arg -eq "-h" -or $arg -eq "--help") {
-        Write-Output "northstar-write.ps1 — atomic state writer and STATUS.md renderer for Northstar."
+        Write-Output "suhail-write.ps1 — atomic state writer and STATUS.md renderer for Suhail."
         Write-Output ""
         Write-Output "Usage:"
-        Write-Output "  northstar-write.ps1 <path/to/state.json>"
-        Write-Output "  northstar-write.ps1 --help"
+        Write-Output "  suhail-write.ps1 <path/to/state.json>"
+        Write-Output "  suhail-write.ps1 --help"
         Write-Output ""
         Write-Output "Exit codes:"
         Write-Output "  0  state.json and STATUS.md written successfully"
@@ -60,7 +60,7 @@ foreach ($arg in $RemainingArgs) {
 }
 
 if ($StatePath -eq "") {
-    [Console]::Error.WriteLine("error: usage: northstar-write.ps1 <path/to/state.json>")
+    [Console]::Error.WriteLine("error: usage: suhail-write.ps1 <path/to/state.json>")
     exit 1
 }
 
@@ -213,9 +213,9 @@ $middot = [char]::ConvertFromUtf32(0x00B7) # ·
 $sb = [System.Text.StringBuilder]::new()
 
 # Header block
-[void]$sb.Append("# Northstar $mdash $planFilename$nl")
+[void]$sb.Append("# Suhail $mdash $planFilename$nl")
 [void]$sb.Append("$nl")
-[void]$sb.Append("Northstar v$toolVersion $middot Last tick: $updatedAt $middot Mode: $nsMode $middot Current: $currentLine$nl")
+[void]$sb.Append("Suhail v$toolVersion $middot Last tick: $updatedAt $middot Mode: $nsMode $middot Current: $currentLine$nl")
 [void]$sb.Append("$nl")
 
 # Progress table
@@ -285,7 +285,7 @@ if ($null -ne $parts -and @($parts).Count -gt 0) {
         $partId  = if ($null -ne $part.id) { $part.id } else { "" }
         $partNum = $partId -replace "^part-", ""
         $bt = '`'
-        [void]$sb.Append("- Part $partNum $([char]0x2192) $bt.northstar/parts/$partId/$bt" + $nl)
+        [void]$sb.Append("- Part $partNum $([char]0x2192) $bt.suhail/parts/$partId/$bt" + $nl)
     }
 } else {
     [void]$sb.Append("None.$nl")

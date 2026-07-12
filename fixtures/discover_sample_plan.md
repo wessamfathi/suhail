@@ -1,10 +1,10 @@
-# Sample plan emitted by `/ns-discover`
+# Sample plan emitted by `/su-discover`
 
-This file is **not a runnable Northstar fixture** — it is a representative output of `/ns-discover`, shown so you can see what a successful discovery interview produces. The plan describes a small, plausible feature (adding a `/health` endpoint to a hypothetical web service) and is formatted exactly the way `/ns` expects.
+This file is **not a runnable Suhail fixture** — it is a representative output of `/su-discover`, shown so you can see what a successful discovery interview produces. The plan describes a small, plausible feature (adding a `/health` endpoint to a hypothetical web service) and is formatted exactly the way `/su` expects.
 
 Use this file to:
 
-- Sanity-check what `/ns-discover` is supposed to produce before you run it.
+- Sanity-check what `/su-discover` is supposed to produce before you run it.
 - Hand-edit a discovery output and learn the plan-format contract by example.
 - Diff against your own discovery runs to spot drift.
 
@@ -51,7 +51,7 @@ If any dependency is `down`, the overall `status` field flips to `degraded` (not
 
 ### Part 3 — Wire `/health` into the monitoring config
 
-Add the new endpoint to the existing monitoring configuration so the on-call dashboard picks it up without manual setup. The exact path and format depend on what the project's monitoring stack already uses — the ns-scout should discover this from `monitoring/` or equivalent before committing to a shape.
+Add the new endpoint to the existing monitoring configuration so the on-call dashboard picks it up without manual setup. The exact path and format depend on what the project's monitoring stack already uses — the su-scout should discover this from `monitoring/` or equivalent before committing to a shape.
 
 **Depends on:** Part 2
 
@@ -67,5 +67,5 @@ Add the new endpoint to the existing monitoring configuration so the on-call das
 
 ## Open questions
 
-- Should the auth API probe use the auth API's own `/health`, or a cheap authenticated call? The discoverer left this to the ns-scout.
+- Should the auth API probe use the auth API's own `/health`, or a cheap authenticated call? The discoverer left this to the su-scout.
 - Is there an existing convention for status-string vocabulary (`ok` vs. `healthy` vs. `up`)? Researcher should match it.

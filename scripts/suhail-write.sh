@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# northstar-write.sh — atomic state writer and STATUS.md renderer for Northstar.
+# suhail-write.sh — atomic state writer and STATUS.md renderer for Suhail.
 #
 # Usage:
-#   northstar-write.sh <path/to/state.json>    # JSON payload on stdin
-#   northstar-write.sh --help
+#   suhail-write.sh <path/to/state.json>    # JSON payload on stdin
+#   suhail-write.sh --help
 #
 # Exit codes:
 #   0  state.json and STATUS.md written successfully
@@ -60,7 +60,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$STATE_PATH" ]]; then
-  die1 "usage: northstar-write.sh <path/to/state.json>"
+  die1 "usage: suhail-write.sh <path/to/state.json>"
 fi
 
 # ---------------------------------------------------------------------------
@@ -270,7 +270,7 @@ while IFS= read -r p_id; do
   [[ -z "$p_id" ]] && continue
   artifact_count=$((artifact_count + 1))
   p_num="$(printf '%s' "$p_id" | sed 's/^part-//')"
-  artifacts_text="${artifacts_text}- Part ${p_num} → \`.northstar/parts/${p_id}/\`
+  artifacts_text="${artifacts_text}- Part ${p_num} → \`.suhail/parts/${p_id}/\`
 "
 done < <(jq -r '.parts // [] | .[].id' "$STATE_PATH" | tr -d '\r')
 
@@ -285,9 +285,9 @@ fi
 STATUS_PATH="${STATE_DIR}/STATUS.md"
 
 {
-  printf '# Northstar \xe2\x80\x94 %s\n' "$plan_filename"
+  printf '# Suhail \xe2\x80\x94 %s\n' "$plan_filename"
   printf '\n'
-  printf 'Northstar v%s \xc2\xb7 Last tick: %s \xc2\xb7 Mode: %s \xc2\xb7 Current: %s\n' \
+  printf 'Suhail v%s \xc2\xb7 Last tick: %s \xc2\xb7 Mode: %s \xc2\xb7 Current: %s\n' \
     "$tool_version" "$updated_at" "$mode" "$CURRENT_LINE"
   printf '\n'
   printf '## Progress\n'

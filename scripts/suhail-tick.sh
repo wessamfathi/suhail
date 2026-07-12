@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# northstar-tick.sh — read-only state inspector for Northstar.
+# suhail-tick.sh — read-only state inspector for Suhail.
 #
 # Usage:
-#   northstar-tick.sh <path/to/state.json>
-#   northstar-tick.sh --help
+#   suhail-tick.sh <path/to/state.json>
+#   suhail-tick.sh --help
 #
 # Exit codes:
 #   0  directive JSON emitted to stdout
@@ -52,7 +52,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$STATE_FILE" ]]; then
-  die1 "usage: northstar-tick.sh <path/to/state.json>"
+  die1 "usage: suhail-tick.sh <path/to/state.json>"
 fi
 
 if [[ ! -f "$STATE_FILE" ]]; then

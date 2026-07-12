@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# northstar-clean.sh — remove Northstar run artefacts from the current directory.
+# suhail-clean.sh — remove Suhail run artefacts from the current directory.
 #
 # Usage:
-#   northstar-clean.sh
-#   northstar-clean.sh --help
+#   suhail-clean.sh
+#   suhail-clean.sh --help
 #
 # Exit codes:
 #   0  cleanup complete (idempotent — no error if nothing to remove)
 #   1  unknown flag passed
 #
 # Output:
-#   Removes .northstar/ directory and any .northstar-*.txt marker files
+#   Removes .suhail/ directory and any .suhail-*.txt marker files
 #   found in the current working directory. Safe to run multiple times.
 
 set -euo pipefail
@@ -40,7 +40,7 @@ done
 # cleanup
 # ---------------------------------------------------------------------------
 
-rm -rf .northstar
-rm -f .northstar-*.txt
+rm -rf .suhail
+rm -f .suhail-*.txt
 
 exit 0

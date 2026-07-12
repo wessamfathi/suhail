@@ -1,6 +1,27 @@
 # Changelog
 
-All notable changes to Northstar are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to Suhail (formerly Northstar) are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.0] — 2026-07-12
+
+### Changed
+- **Project renamed: Northstar → Suhail.** "Northstar" collided with several adjacent projects in the AI-agent and dev-tool space, so the project is rebranded to **Suhail** — the Arabic name for Canopus, the guiding star of Arab navigators. Same guiding-star identity, collision-free name. Everything else about the pipeline is unchanged; this release is the rename plus the version reset to 1.0.0 (the state-dir move is a breaking change, per the project's IPC-stability rule).
+- Full old → new mapping:
+
+  | Old | New |
+  |---|---|
+  | `/ns`, `/ns-init`, `/ns-discover`, `/ns-next`, `/ns-status`, `/ns-abort`, `/ns-auto`, `/ns-skip` | `/su`, `/su-init`, `/su-discover`, `/su-next`, `/su-status`, `/su-abort`, `/su-auto`, `/su-skip` |
+  | Agents `ns-scout`, `ns-executer`, `ns-verifier`, `ns-indexer`, `ns-discover-scout`, `ns-discover-planner` | `su-scout`, `su-executer`, `su-verifier`, `su-indexer`, `su-discover-scout`, `su-discover-planner` |
+  | State dir `.northstar/` (incl. `intel/`, `parts/`, `plans/`) | `.suhail/` |
+  | Smoke-test artifact `.northstar-smoketest.txt` (env var `NORTHSTAR_SMOKE_TOKEN`) | `.suhail-smoketest.txt` (`SUHAIL_SMOKE_TOKEN`) |
+  | Scripts `scripts/northstar-{write,read,tick,clean}.{sh,ps1}` | `scripts/suhail-{write,read,tick,clean}.{sh,ps1}` |
+  | Plugin `northstar@northstar` from `wessamfathi/northstar` | `suhail@suhail` from `wessamfathi/suhail` |
+
+### Migration
+- **Finish or abort in-flight runs before upgrading.** Suhail reads state from `.suhail/`, so an existing `.northstar/` run will not be picked up. Either complete the run on the old version, or move the state (`mv .northstar .suhail`) before the first `/su` invocation.
+- **Reinstall the plugin under its new name:** remove the old marketplace/plugin (`northstar@northstar`), then `/plugin marketplace add wessamfathi/suhail` and `/plugin install suhail@suhail`.
+- **Update target-repo `.gitignore` entries** from `.northstar/` / `.northstar-*.txt` to `.suhail/` / `.suhail-*.txt`.
+- Changelog entries below this one predate the rename and intentionally keep the old `Northstar` / `ns-` names.
 
 ## [0.15.0] — 2026-07-02
 
