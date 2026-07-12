@@ -28,16 +28,16 @@ Remove-Item -Force .suhail-*.txt -ErrorAction SilentlyContinue
 
 ### `test_plan.md` — happy-path smoke test
 
-Three Parts. Exercises the full pipeline: su-scout → su-executer → su-verifier, plus the external-dependency checkpoint (Part 2) and a trivial Part that skips su-scout/su-verifier (Part 3). Expected verdicts `clean`. Creates `.suhail-smoketest.txt` and `.suhail-smoketest-2.txt`.
+Three Parts across two dependency levels. Exercises the full pipeline: level scouting → master-plan approval → su-executer → su-verifier, plus the external-dependency checkpoint (Part 2) and a trivial Part (Part 3) that skips su-scout via a synthetic brief — the verifier still runs on its non-empty diff. Expected verdicts `clean`. Creates `.suhail-smoketest.txt` and `.suhail-smoketest-2.txt`.
 
 This is the canonical post-install smoke test. If this fixture runs to completion with no blockers, the pipeline is wired correctly.
 
 ### `multi_part_deps.md` — dependency ordering
 
-Three Parts with declared dependencies. Tests that:
+Three Parts with declared dependencies (a chain, so each Part is its own level). Tests that:
 - Suhail parses `**Depends on:** Part N` correctly.
 - Parts execute in dependency order (Part 1 before Part 2 before Part 3, regardless of numeric order vs. dep order).
-- After each Part, the orchestrator pauses with a Continue/Pause prompt.
+- After each level, the orchestrator pauses with the level checkpoint (Continue / Pause / Run to end / Abort).
 - The status table in STATUS.md shows the expected progression.
 
 ### `blocker_research.md` — blocker protocol
@@ -64,12 +64,12 @@ Three-Part plan that exercises parallel su-verifier dispatch. Part 1 (level 0) r
 
 ### `skip_flow.md` — /su-skip flow
 
-Two-Part plan that exercises the `/su-skip` command. Part 1 runs normally and creates `.suhail-skip-1.txt`. The contributor then invokes `/su-skip` at the orchestrator's Continue prompt to skip Part 2. Tests that:
+Two-Part plan that exercises the `/su-skip` command. Part 1 runs normally and creates `.suhail-skip-1.txt`. The contributor then invokes `/su-skip` at the level checkpoint to skip Part 2 (since Part 1 is already terminal, `/su-skip` targets the next eligible Part). Tests that:
 - The orchestrator marks the skipped Part as `skipped` in `STATUS.md` without invoking the su-executer.
 - The skipped Part's marker file (`.suhail-skip-2.txt`) is never created.
 - The run completes normally after the skip.
 
-**Requires a manual step:** after Part 1 completes, type `/su-skip` instead of confirming Continue.
+**Requires a manual step:** at the level checkpoint after Part 1 completes, type `/su-skip` instead of choosing Continue.
 
 ## Adding a new fixture
 

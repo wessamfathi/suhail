@@ -9,13 +9,15 @@ Suhail is a generic plan-orchestration pipeline for Claude Code. The repo ships 
 ## Repo layout at a glance
 
 ```
-agents/                # Role subagents (su-scout, su-executer, su-verifier).
-commands/              # Slash commands (su, su-init, su-discover, su-next). The orchestrator state machine lives in commands/su.md.
+agents/                # Six role subagents: su-scout, su-executer, su-verifier, su-indexer, su-discover-scout, su-discover-planner.
+commands/              # Eight slash commands: su, su-init, su-discover, su-next, su-auto, su-skip, su-status, su-abort. The orchestrator state machine lives in commands/su.md.
+scripts/               # Runtime helper scripts, bash + PowerShell pairs (suhail-tick, suhail-read, suhail-write, suhail-clean).
+tests/                 # Regression harness: tick matrix, reader/writer edge cases, payload validation. Run ./tests/run-all.sh.
 fixtures/              # Plan files used to exercise Suhail end-to-end.
-scripts/               # POSIX + PowerShell installers.
 docs/                  # plan-format.md, architecture.md, extending.md, decisions.md.
+.github/               # CI workflow, issue form, PR template.
 README.md              # User-facing.
-CHANGELOG.md           # SemVer-tagged release notes.
+CHANGELOG.md           # SemVer release notes.
 LICENSE                # MIT.
 ```
 
@@ -29,9 +31,10 @@ LICENSE                # MIT.
 ## When making changes
 
 - **Adding/changing a role subagent:** edit `agents/<role>.md`. Each role's contract (Input / Process / Output / Blocker protocol / Don't) is documented inline; preserve those sections.
-- **Adding/changing orchestrator behavior:** edit `commands/su.md`. The state machine, parsing rules, dispatch shapes, narration discipline, and commit policy are all there.
-- **Adding a new role:** see `docs/extending.md` for the recipe — write the agent file, add a state-machine phase in `commands/su.md`, bump the version, add a CHANGELOG entry.
+- **Adding/changing orchestrator behavior:** edit `commands/su.md` AND keep `scripts/suhail-tick.{sh,ps1}` in sync — the tick scripts route every state deterministically and fail closed on anything they don't recognize. Add matrix cases to `tests/tick-matrix.sh` for any new state or directive.
+- **Adding a new role:** see `docs/extending.md` for the recipe — write the agent file, wire the state machine in both homes (`commands/su.md` + both tick scripts), add harness cases, bump the version, add a CHANGELOG entry.
 - **Changing the plan format:** `docs/plan-format.md` is the spec; `commands/su.md` has the parser. Update both.
+- **Command headings carry no private versions.** Only `commands/su.md`'s heading carries the tool version; the other command files' H1s are unversioned.
 
 ## Version bumps
 
@@ -77,7 +80,7 @@ When the smoke test passes against all fixtures, the change is good enough to re
 
 ## Conventions
 
-- All markdown files use LF line endings in the repo (git may complain about CRLF on Windows; that's a warning, not an error — the `.gitattributes` policy is not set explicitly).
+- All files use LF line endings, enforced explicitly by `.gitattributes` (`* text=auto eol=lf`, plus per-type rules) — Windows editors cannot silently reintroduce CRLF into the working tree. CI's LF-policy check fails on any CR or BOM in tracked files.
 - Subagent prompts use Markdown H2 sections for structure (`## Input`, `## Process`, `## Output`, `## Blocker protocol`, `## Don't`). Keep the section names consistent across roles — the orchestrator does not parse them, but humans diff them.
 - The orchestrator narrates in **one short sentence per event**. Do not lengthen the narration even for clarity — context discipline is the design.
 - Never add telemetry. Never phone home. Never log to a third party. v1 commitment.
@@ -85,7 +88,7 @@ When the smoke test passes against all fixtures, the change is good enough to re
 ## Don't
 
 - Don't run `/su` from inside the Suhail repo against `fixtures/test_plan.md` and accidentally commit the resulting `.suhail/` or `.suhail-smoketest.txt` — `.gitignore` covers both, keep it that way.
-- Don't add a new dependency (npm package, pip module, anything) without strong justification. Suhail is markdown and shell. Keep it that way.
+- Don't add a new dependency (npm package, pip module, anything) without strong justification. Suhail is markdown and shell; `jq` is the single recorded runtime exception, and python3+PyYAML is dev-only test tooling that self-skips when absent (both recorded in docs/decisions.md 2026-07-12). Keep it that way.
 - Don't make role subagents stack-aware. If they need stack context, they should discover it via the su-scout's `brief.md`.
 - Don't change the IPC mechanism (files in `.suhail/parts/<id>/`) without a major version bump and migration plan.
 

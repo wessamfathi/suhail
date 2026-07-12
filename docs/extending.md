@@ -1,6 +1,6 @@
 # Extending Suhail
 
-Suhail ships with three role subagents (su-scout, su-executer, su-verifier) plus a slash-command orchestrator. Adding new roles is a matter of writing one markdown file and (usually) editing the orchestrator's state machine to dispatch it at the right phase.
+Suhail ships with six role subagents — the three pipeline roles (su-scout, su-executer, su-verifier), the project indexer (su-indexer, dispatched by `/su-init`), and the two discover agents (su-discover-scout and su-discover-planner, dispatched by `/su-discover`) — plus a slash-command orchestrator. Adding a new role means writing one markdown file and editing the state machine in BOTH of its homes: the orchestrator prompt (`commands/su.md`) and the deterministic tick scripts (`scripts/suhail-tick.{sh,ps1}`) that route every state.
 
 The orchestrator itself lives in `commands/su.md` rather than as a subagent because Claude Code does not allow subagents to spawn further subagents. The top-level session plays the orchestrator role per turn. See `docs/architecture.md` for the full rationale.
 
@@ -39,17 +39,15 @@ You are the performance-auditor role in the Suhail pipeline...
 
 Reuse the su-verifier template — same input shape (brief.md, diff path), same output shape (verdict + findings list), same retry semantics if you want it to re-dispatch the su-executer on blockers.
 
-### 2. Update the orchestrator state machine
+### 2. Update the state machine — in BOTH homes
 
-Edit `commands/su.md` to add a new phase between `verifying` and `completed`:
+The state machine lives in two places that must stay in sync: `commands/su.md` (the handlers the orchestrator executes) and `scripts/suhail-tick.{sh,ps1}` (the deterministic routing that decides which handler fires). Both tick scripts fail closed on anything they don't recognize — an unknown Part status exits 3 and an unknown `run_phase` exits 2 — so a new status or phase that only exists in `su.md` will halt the run at the first tick.
 
-```
-### perf-auditing
+For the performance-auditor example, the smallest change is a new Part status (`perf_auditing`) slotted into the batch cycle after verification:
 
-Identical shape to `verifying` with subagent_type="performance-auditor" and output path perf.md. Same retry semantics. On clean or concerns: advance to `completed`. Re-tick.
-```
-
-Update the status enum doc string to include the new phase.
+1. In `scripts/suhail-tick.sh` AND `scripts/suhail-tick.ps1`: add a `batch_first perf_auditing`-style query to `batch_directive` emitting a new directive (e.g. `{"action":"dispatch_perf_auditor","part_id":...}`), positioned in the routing order where the phase belongs.
+2. In `commands/su.md`: add a `### dispatch_perf_auditor` handler (dispatch shape mirrors `start_batch_verifying` step 4), add the status to the per-Part status enum in the state schema section, and wire the completion path.
+3. Add matrix cases to `tests/tick-matrix.sh` for the new status, and add the new directive name to the `directives` array in `tests/payload-checks.sh` — that array drives the reachability check (directive emitted with no handler / handler nothing emits), so a new directive fails it until listed.
 
 ### 3. Packaging
 
@@ -57,11 +55,11 @@ No packaging edit needed — the plugin bundles everything in `agents/*.md` (and
 
 ### 4. Update STATUS.md generation
 
-STATUS.md generation is now handled by `suhail-write.{ps1,sh}` (installed to `commands/scripts/`), not by an inline template in `commands/su.md`. If you want the new phase to appear in the STATUS dashboard (new column, new emoji, new row), edit the write scripts in their installed location. The scripts read `tool_version` from the state JSON at runtime — no hardcoded version string to keep in sync.
+STATUS.md generation is handled by `scripts/suhail-write.{ps1,sh}`, not by an inline template in `commands/su.md`. If you want the new phase to appear in the STATUS dashboard (new emoji, new row treatment), edit both write scripts. The scripts read `tool_version` from the state JSON at runtime — no hardcoded version string to keep in sync.
 
 ### 5. Bump the version
 
-Bump `tool_version` in `commands/su.md` in two locations: the heading (`# /su — Suhail vX.Y.Z`) and the `tool_version` field inside the state schema block. The write scripts (`suhail-write.{ps1,sh}`, installed to `commands/scripts/` and resolved via the project-then-global lookup defined in `## Script-path resolution` in `commands/su.md`) read `tool_version` from the state JSON at runtime and require no separate version edit. Add a CHANGELOG entry.
+Bump `tool_version` in `commands/su.md` in two locations: the heading (`# /su — Suhail vX.Y.Z`) and the `tool_version` field inside the state schema block — plus the README footer and `.claude-plugin/plugin.json` (see CONTRIBUTING § Releasing for the full sync-point list; CI's version-sync job fails if they disagree). Add a CHANGELOG entry.
 
 ## Skipping a role per-Part
 
@@ -77,13 +75,13 @@ Don't.
 
 The orchestrator's state machine references each role by name. Removing one means surgery on `commands/su.md` and the state machine doc, plus thinking about migration for in-flight runs that have artifacts from the removed role.
 
-If you don't need a role on your particular project, the better path is to install Suhail then edit the orchestrator's state machine in `~/.claude/commands/su.md` locally to skip that role's phase. Don't fork.
+If you don't need a role on your particular project, the better path is to clone the repo, edit the role's phase locally, and install your working copy as a plugin from a local marketplace (`/plugin marketplace add /path/to/suhail` → `/plugin install suhail@suhail` — the flow CONTRIBUTING documents for development). Don't fork publicly.
 
 ## Replacing a role's implementation
 
-The role contract is: same input shape, same output shape. You can totally rewrite the prompt body of `su-verifier.md` to match your team's house style, your specific tech stack, your specific concerns — as long as the output `Verdict` line still parses and findings still have `[severity]` tags, the orchestrator will work.
+The role contract is: same input shape, same output shape. You can totally rewrite the prompt body of `su-verifier.md` to match your team's house style, your specific tech stack, your specific concerns — as long as the output `## Verdict` section still parses and findings still have `[severity]` tags, the orchestrator will work.
 
-This is the recommended way to specialize Suhail without forking: keep the orchestrator generic, customize the role prompts locally.
+This is the recommended way to specialize Suhail without forking: keep the orchestrator generic, customize the role prompts in a local working copy installed via the local-marketplace flow above.
 
 ## Per-language tweaks
 

@@ -97,7 +97,10 @@ $stateDir = Split-Path -Parent ([System.IO.Path]::GetFullPath($StatePath))
 $tmpPath = "$StatePath.tmp"
 
 try {
-    [System.IO.File]::WriteAllText($tmpPath, $inputContent, [System.Text.Encoding]::UTF8)
+    # UTF8 WITHOUT BOM — [System.Text.Encoding]::UTF8 would prepend EF BB BF,
+    # diverging from the .sh writer and from this script's own STATUS.md write.
+    $utf8NoBomState = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText($tmpPath, $inputContent, $utf8NoBomState)
     Move-Item -Path $tmpPath -Destination $StatePath -Force
 } catch {
     [Console]::Error.WriteLine("error: failed to write state file: $_")
@@ -232,6 +235,9 @@ foreach ($part in $parts) {
     $partGroup  = if ($null -ne $part.group)  { $part.group }  else { "" }
     $partTitle  = if ($null -ne $part.title)  { $part.title }  else { "" }
     $partStatus = if ($null -ne $part.status) { $part.status } else { "pending" }
+    # escape '|' so a title/group can never add columns to the table
+    $partGroup  = $partGroup -replace '\|', '\|'
+    $partTitle  = $partTitle -replace '\|', '\|'
     $partEmoji  = Get-StatusEmoji -Status $partStatus
     [void]$sb.Append("| $rowNum | $partLevel | $partGroup | $partTitle | $partEmoji $partStatus |$nl")
 }

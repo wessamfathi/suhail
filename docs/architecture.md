@@ -1,19 +1,19 @@
 # Architecture
 
-Suhail is a thin coordinator over three specialized roles. This document covers the design choices behind the structure, the data flow, and the reasoning behind the constraints.
+Suhail is a thin coordinator over a handful of specialized roles. This document covers the design choices behind the structure, the data flow, and the reasoning behind the constraints.
 
-## The four roles
+## The roles
 
 | Role | Tools | Model | Output |
 |---|---|---|---|
 | **su-indexer** | Read, Write, Glob, Grep, Bash | sonnet | `.suhail/intel/{stack,layout,conventions,modules}.md` — project-wide baseline cached once per project by `/su-init` |
 | **su-scout** | Read, Write, Glob, Grep | sonnet | `brief.md` — discovered stack conventions, files to touch, reusable helpers, gotchas, domain risks, and ordered step list |
 | **su-executer** | Read, Edit, Write, Glob, Grep, Bash | sonnet | `execution.md` — file changes, command results, manual follow-ups |
-| **su-verifier** | Read, Write, Glob, Grep, Bash | haiku (`claude-haiku-4-5-20251001`) | `review.md` + `audit.md` — two-pass verdict and findings (review pass: correctness, regressions, convention drift; audit pass: security and compliance) |
-| **su-discover-scout** | Read, Glob, Grep | haiku (`claude-haiku-4-5-20251001`) | Structured context summary returned as response (no disk write) — Phase 0 grounding for `/su-discover`. Dispatched exclusively by `/su-discover`, not by the orchestrator. |
+| **su-verifier** | Read, Write, Glob, Grep, Bash | haiku | `review.md` + `audit.md` — two-pass verdict and findings (review pass: correctness, regressions, convention drift; audit pass: security and compliance) |
+| **su-discover-scout** | Read, Glob, Grep | haiku | Structured context summary returned as response (no disk write) — Phase 0 grounding for `/su-discover`. Dispatched exclusively by `/su-discover`, not by the orchestrator. |
 | **su-discover-planner** | Read, Write | sonnet | `.suhail/plans/<slug>.md` — Suhail-format plan file. Phase 5 plan-writing for `/su-discover`. Dispatched exclusively by `/su-discover`, not by the orchestrator. |
 
-Plus the **orchestrator** (`/su`) itself: opus, has access to Agent + AskUserQuestion + state I/O, dispatches the roles in sequence. The **su-indexer** is dispatched only by `/su-init`, not by the orchestrator — it runs once per project as a precursor.
+Plus the **orchestrator** (`/su`) itself: it runs in the top-level session on whatever model that session uses, has access to Agent + AskUserQuestion + state I/O, and dispatches the roles. The **su-indexer** is dispatched only by `/su-init`, not by the orchestrator — it runs once per project as a precursor.
 
 ## Pipeline shape
 
@@ -21,17 +21,21 @@ Plus the **orchestrator** (`/su`) itself: opus, has access to Agent + AskUserQue
 (once per project)
   /su-init → su-indexer → .suhail/intel/{stack,layout,conventions,modules}.md
 
-(per Part, inside /su)
-  su-scout → (user approval) → su-executer → su-verifier → completed → (user approval) → next Part
-                                   ▲               │
-                                   │               │ findings include [blocker]
-                                   └───────────────┘
-                                   up to max_retries (default 3)
+(per dependency level, inside /su)
+  su-scouts (parallel) → master plan approval → su-executers (serial)
+    → su-verifiers (parallel) → per Part: atomic commit + follow-ups + card
+    → level checkpoint → next level
+                 ▲                    │
+                 │                    │ verdicts include blockers
+                 └────────────────────┘
+                 re-execute, up to max_retries (default 3)
 ```
+
+INIT groups Parts into dependency levels (level 0 = no dependencies; each Part's level is one more than its deepest dependency). Each level is scouted in parallel; the resulting briefs are approved together at one master-plan gate (or Part-by-Part when the user chooses "review individually"). Executers run strictly serially. Once every Part in the level has executed, verifiers run in parallel, and each verified-clean Part gets its own atomic commit, Manual-follow-ups checkpoint, and transition card before the run pauses at the level boundary (interactive mode).
 
 The intel cache is the only project-wide artifact. Per-Part artifacts live under `.suhail/parts/<id>/`. The su-scout reads the intel cache as step 0 of its process so it does not re-derive stack, layout, conventions, or module structure on every Part.
 
-The su-verifier runs two sequential passes on every Part: a review pass (correctness, regressions, convention drift) producing `review.md`, then an audit pass (security and compliance) producing `audit.md`. If either pass finds `blocker`-severity issues, the su-verifier triggers a re-dispatch of the su-executer. This serializes feedback so the su-executer addresses correctness before security.
+The su-verifier runs two sequential, independent passes on every non-empty diff: a review pass (correctness, regressions, convention drift) producing `review.md`, then an audit pass (security and compliance) producing `audit.md` — the audit always runs, even when the review found blockers. If either pass finds `blocker`-severity issues, the orchestrator re-dispatches the su-executer with the findings attached.
 
 ## Why files-as-IPC
 
@@ -44,17 +48,17 @@ Trade-off: each subagent does a small amount of file I/O it could have avoided. 
 - Subagents are stateless. Each invocation can read its inputs from disk, run, write outputs, and exit. No long-lived agents, no in-memory state to corrupt.
 - Re-running a stage is trivial. The orchestrator's `retry` command renames the existing artifacts to `*.orig.md` and starts fresh.
 
-## Why one Part per tick
+## Why explicit checkpoints
 
-The orchestrator advances state by exactly one logical step per invocation (one Part end-to-end in interactive mode). When the Part finishes, it ends the turn with an AskUserQuestion. The user explicitly chooses to continue.
+The orchestrator advances state one logical step per invocation and never advances past a user-facing gate without the user authorizing. Hard checkpoints per dependency level: the master-plan approval before any code is written (covering every brief in the level, or each brief individually on request), and the level-boundary checkpoint after every Part in the level has been verified, committed, and carded. For linear plans — each Part depending on the previous — every Part is its own level, so this degenerates to a pause after every Part.
 
-This is the system's most important property. The user requested it explicitly: every Part is a checkpoint. In interactive mode there is no way to advance past a Part without the user authorizing.
+Explicit approval at every gate is a hard requirement of the design, not a convenience default: no work is executed from a brief the user (or an explicitly chosen auto-approve mode) hasn't approved.
 
-`run-to <part-id>` is the explicit escape hatch for unattended runs. It bypasses per-Part pauses AND su-scout-approval, walks Parts until it hits the named target, and then reverts to interactive mode. A 20-Part safety cap forces an interactive checkpoint even mid-target, so runs can't go arbitrarily long unattended.
+`run-to <part-id>` and `autorun` are the explicit escape hatches for unattended runs. They bypass the approval gates and level checkpoints, walk Parts until the target (or plan end), then revert to interactive mode. Safety caps (20 Parts for run-to, 10 for autorun) force an interactive checkpoint, so runs can't go arbitrarily long unattended.
 
 ## Why the su-verifier uses two passes
 
-The su-verifier runs a review pass followed by an audit pass within a single agent invocation. The passes are sequential — the audit pass runs only after the review pass is clean — so the su-executer addresses correctness before security concerns.
+The su-verifier runs a review pass followed by an audit pass within a single agent invocation. The passes are sequential and independent — `review.md` is written to disk before the audit pass begins, and the audit always runs regardless of what the review found — so review findings can't bias the security audit.
 
 - The review pass catches: missing planned steps, broken patterns, missed reuse opportunities, regressions outside the planned files, type/null safety, performance smells.
 - The audit pass catches: missing auth checks, injection, secrets in the diff, missing input validation, deep-link host validation.
@@ -81,7 +85,7 @@ Two shell scripts (`suhail-read.{ps1,sh}` and `suhail-write.{ps1,sh}`) handle th
 
 At runtime the orchestrator resolves the scripts directory using a four-step lookup before the first invocation: (1) `${CLAUDE_PLUGIN_ROOT}/scripts/` (plugin install — the token is substituted inline when plugin-installed, and left literal otherwise so it falls through); (2) `./.claude/commands/scripts/` (manual project copy); (3) `$CLAUDE_CONFIG_DIR/commands/scripts/` if `CLAUDE_CONFIG_DIR` is set, otherwise `~/.claude/commands/scripts/` (manual user copy); (4) `./scripts/` as a dev-repo fallback for running `/su` directly inside the Suhail source repo. The authoritative definition of this lookup is in the `## Script-path resolution` section of `commands/su.md`.
 
-**`suhail-read`** reads a part directory (`.suhail/parts/<id>/`) and returns a structured JSON summary of the artifacts present — brief.md, execution.md, review.md, audit.md, blocker.md. The orchestrator calls it after subagent dispatch to extract verdict fields and file lists without reading full artifact bodies into its own context.
+**`suhail-read`** reads a part directory (`.suhail/parts/<id>/`) and returns a structured JSON summary of the artifacts present — the review and audit verdicts, the execution artifact's files-changed count (from the latest attempt), and the blocker's frontmatter fields. The orchestrator calls it after subagent dispatch to extract those fields without reading full artifact bodies into its own context.
 
 **`suhail-write`** accepts the full state JSON on stdin, writes `state.json` atomically (write to a temp file, then rename), and renders `STATUS.md` from the state fields — including `tool_version`, which it reads from `state.tool_version` at runtime. No hardcoded version string lives in the script; bumping `tool_version` in the state schema in `commands/su.md` is sufficient for `STATUS.md` to reflect the new version automatically.
 
@@ -115,7 +119,7 @@ The precursor gate is enforced by `/su` and `/su-discover`. The gate runs at INI
 
 As of v0.8.0, `/su-discover` operates as a three-piece split:
 
-- **Phase 0 (silent grounding)** delegates to `su-discover-scout` (`agents/su-discover-scout.md`): read-only, one-shot, uses model `claude-haiku-4-5-20251001` (haiku). It scans the repo (CLAUDE.md, README, manifests, directory tree) and returns a structured context summary as its response — no disk write. Appropriate here because the summary is transient context the slash command needs for interview grounding, not an artifact the user needs to inspect or retry. Keeping the scan in a subagent also separates the file-scan context from the interview session's context.
+- **Phase 0 (silent grounding)** delegates to `su-discover-scout` (`agents/su-discover-scout.md`): read-only, one-shot, uses the `haiku` model alias. It scans the repo (CLAUDE.md, README, manifests, directory tree) and returns a structured context summary as its response — no disk write. Appropriate here because the summary is transient context the slash command needs for interview grounding, not an artifact the user needs to inspect or retry. Keeping the scan in a subagent also separates the file-scan context from the interview session's context.
 - **Phases 1–4 (multi-turn interview)** remain in the slash command itself. The command holds structured answers in memory across `AskUserQuestion` turns and builds the answers file at `.suhail/discover/<slug>.answers.md` once the interview concludes. This answers file is the IPC artifact between the command and the next phase — same files-as-IPC contract as the rest of the pipeline.
 - **Phase 5 (plan-writing)** delegates to `su-discover-planner` (`agents/su-discover-planner.md`): write-only, one-shot, sonnet. It reads the answers file and writes a Suhail-format plan to `.suhail/plans/<slug>.md`. Putting plan-writing in a subagent keeps the slash command's context bounded and makes the plan-writing step independently retryable.
 
@@ -127,7 +131,7 @@ The orchestrator prompt is ~600 lines (10–15K tokens) and is injected into the
 
 - One short narration sentence per subagent dispatch (~5 per Part).
 - One short narration sentence per subagent return (~5 per Part).
-- One AskUserQuestion per Part-completion checkpoint, plus any blocker-resolution exchanges (typically 0–1 per Part).
+- One AskUserQuestion per approval gate and level checkpoint, plus any blocker-resolution exchanges (typically 0–1 per Part).
 - The list of files changed (≤20 paths per Part typically).
 
 What does NOT enter the top-level context:
@@ -162,16 +166,17 @@ Suhail talks to the user in exactly these moments:
 
 | Trigger | Mechanism |
 |---|---|
-| INIT completed, ready to start | AskUserQuestion: start Part 1? |
-| Scout produced brief (interactive mode) | AskUserQuestion: approve plan? |
+| Level scouted, briefs ready (interactive mode) | AskUserQuestion: approve all / review individually / show briefs / abort |
+| Per-Part brief gate ("review individually" chosen) | AskUserQuestion: approve / add note / skip / show brief |
+| ⚠ external dependencies found in a brief | AskUserQuestion: continue / skip / abort |
 | Subagent flagged a blocker | AskUserQuestion: pick a resolution option |
 | Verifier exceeded retry budget | AskUserQuestion: skip / abort / fix manually |
-| Part completed (interactive mode) | AskUserQuestion: continue / pause / commit first |
-| Run-to safety cap (20 Parts unattended) | AskUserQuestion: continue / pause |
+| Level completed (interactive mode) | AskUserQuestion: continue / pause / run to end / abort (+ artifact views) |
+| Run-to / autorun safety cap reached | AskUserQuestion: continue / pause |
 | Run-to target reached | AskUserQuestion: continue interactively? |
-| All Parts done | AskUserQuestion: summary / abort / done |
+| All Parts done | AskUserQuestion: show summary / done |
 | Plan SHA drift | AskUserQuestion: re-parse / continue cached |
-| Any narrated update | One short sentence as plain text, no question |
+| Any narrated update, Part transition cards | Plain text output, no question |
 
 The orchestrator never silently advances past a user-facing checkpoint. Every checkpoint is a real AskUserQuestion, not a yes/no prompt buried in narration.
 

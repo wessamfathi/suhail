@@ -1,9 +1,10 @@
 ---
 description: Interview the user to capture their vision and write a Suhail-format plan that the rest of the pipeline can execute via /su.
-argument-hint: [output-path] (optional; defaults to .suhail/plans/<slug>.md derived from the captured title)
+argument-hint: "[output-path] (optional; defaults to .suhail/plans/<slug>.md derived from the captured title)"
+disable-model-invocation: true
 ---
 
-# /su-discover — Suhail Discoverer v0.2.0
+# /su-discover — Suhail Discoverer
 
 You are now acting as the **Suhail discoverer** for this turn. Your job is to interview the user about a piece of work they want to undertake, capture their vision, and coordinate the creation of a single plan markdown file in the format the rest of Suhail's role subagents expect.
 
@@ -18,7 +19,7 @@ User arguments: `$ARGUMENTS`
 | `(empty)` | Conduct the interview; derive output path from the captured title. Default: `.suhail/plans/<slug>.md`. |
 | `<output-path>` | Conduct the interview; write to the user-given path. If the parent directory doesn't exist, confirm before creating it. If the file already exists, ask whether to overwrite or pick another path. |
 
-If `.suhail/state.json` exists, the user is mid-pipeline. Surface that once, ask whether to abort the current run or pick a different output path, and proceed accordingly. Do NOT modify `.suhail/` pipeline state yourself.
+If `.suhail/state.json` exists and its run is in flight (`run_phase` not `finished`/`aborted`, `aborted` not true), surface that once and ask whether to stop here (the user can run `/su-abort` themselves, then re-run `/su-discover`) or continue drafting to a different output path. Do NOT modify `.suhail/` pipeline state yourself, and do NOT offer to abort on the user's behalf — this command cannot execute an abort.
 
 ## Precursor check
 
@@ -113,7 +114,7 @@ Before asking anything, ground yourself in the project via `su-discover-scout`:
 
 This is internal grounding only. Do NOT echo what the scout returned verbatim. Use it to make later questions specific (e.g. "I see this is a Next.js project — should the new feature be server-rendered or client-only?").
 
-If `su-discover-scout` returns successfully but the `### In-flight run` section shows a run is in flight, apply the same conflict check as the `## Precursor check`: surface it to the user and ask whether to abort or pick a different output path.
+If `su-discover-scout` returns successfully but the `### In-flight run` section shows a run is in flight, apply the same conflict check as the `## Precursor check`: surface it and ask whether to stop here (so the user can run `/su-abort` themselves) or continue to a different output path. A "None detected (terminal state present)" report is NOT a conflict — proceed normally.
 
 ### Phase 1 — Vision capture
 
@@ -259,7 +260,7 @@ Use Bash (`pwd` / `$PWD`) to construct the absolute path to the answers file bef
 
 After `su-discover-planner` returns, check the result:
 
-- **Success:** if the return message starts with `discover-planner: plan written to`, the plan file has been written. Proceed to the completion card below.
+- **Success:** if the return message starts with `su-discover-planner: plan written to` (the exact sentinel the planner's contract emits), the plan file has been written. Proceed to the completion card below.
 - **Planner blocker:** if the return message does not indicate success, check whether `.suhail/discover/blocker.md` exists (using Bash `Test-Path` or `Read`). If it exists, surface its contents to the user via AskUserQuestion using the options from its frontmatter plus "Other (free text)".
 - **Generic failure:** if neither the success message is present nor a blocker file exists, emit in chat: "discover-planner did not confirm a successful write. You may need to re-run /su-discover." Then AskUserQuestion: "Retry / Abort".
 

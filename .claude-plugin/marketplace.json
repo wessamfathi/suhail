@@ -1,12 +1,15 @@
 {
   "name": "suhail",
-  "owner": { "name": "wessamfathi", "email": "wessam@lana.games" },
-  "description": "Suhail plan-orchestration pipeline for Claude Code.",
+  "owner": {
+    "name": "Wessam Ibrahim",
+    "email": "wessamfathi@gmail.com"
+  },
+  "description": "Suhail plugin marketplace — hosts the suhail plugin.",
   "plugins": [
     {
       "name": "suhail",
       "source": "./",
-      "description": "Scout/executer/verifier plan pipeline with state persistence and per-Part pauses.",
+      "description": "Generic plan-orchestration pipeline for Claude Code — walks any structured plan file to completion via scout/executer/verifier subagents with state persistence and per-Part review checkpoints.",
       "category": "workflow",
       "license": "MIT"
     }

@@ -1,4 +1,4 @@
-﻿# Suhail Skip-Flow Fixture
+# Suhail Skip-Flow Fixture
 
 Tests the `/su-skip` command. A contributor runs `/su`, lets Part 1 complete normally, then invokes `/su-skip` when the orchestrator pauses between Parts to skip Part 2. The run should complete with Part 1 marked `completed` and Part 2 marked `skipped` in `STATUS.md`, and only Part 1's marker file present on disk.
 
@@ -9,22 +9,21 @@ Run with:
 ```
 
 **Expected behavior:**
-1. INIT parses two Parts and initialises `STATUS.md`.
-2. Part 1 executes: scout, executer, and verifier run in order; `.suhail-skip-1.txt` is created.
-3. Orchestrator pauses and prompts to continue. **This is the manual step.** Type `/su-skip` instead of confirming Continue. The orchestrator marks Part 2 `skipped` and advances to completion.
+1. INIT parses two Parts (Part 2 depends on Part 1, so each is its own dependency level) and initialises `STATUS.md`.
+2. Part 1's level runs: scout, master-plan approval, executer, verifier; `.suhail-skip-1.txt` is created, Part 1 gets its commit and transition card.
+3. The orchestrator pauses at the level checkpoint ("Level 0 complete. Continue to level 1 (Part 2)?"). **This is the manual step.** Type `/su-skip` instead of choosing Continue. Because Part 1 is already terminal, `/su-skip` targets the next eligible Part — Part 2 — and marks it `skipped`.
 4. Part 2 is marked `skipped` in `.suhail/STATUS.md`; the executer is never invoked for Part 2.
-5. `.suhail/STATUS.md` shows Part 1 `completed` and Part 2 `skipped`.
+5. `.suhail/STATUS.md` shows Part 1 `completed` and Part 2 `skipped`; the run completes.
 6. `.suhail-skip-2.txt` is NOT created (Part 2 never ran).
 
 Note: This fixture requires a manual step. See step 3 above.
 
-After verifying, clean up:
+After verifying, clean up (`.suhail-*.txt` markers are gitignored, so nothing can be committed accidentally):
 
 ```powershell
 /su-abort
 Remove-Item -Recurse -Force .suhail
 Remove-Item -Force .suhail-skip-*.txt -ErrorAction SilentlyContinue
-# Note: .suhail-skip-*.txt is not covered by .gitignore -- delete these files before any git operations.
 # (POSIX: rm -rf .suhail && rm -f .suhail-skip-*.txt)
 ```
 
