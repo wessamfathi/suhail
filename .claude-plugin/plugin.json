@@ -1,10 +1,21 @@
 {
   "name": "suhail",
-  "description": "Generic plan-orchestration pipeline for Claude Code — walks any structured plan file to completion via scout/executer/verifier subagents with state persistence and per-Part pauses.",
+  "description": "Generic plan-orchestration pipeline for Claude Code — walks any structured plan file to completion via scout/executer/verifier subagents with state persistence and per-Part review checkpoints.",
   "version": "1.0.0",
-  "author": { "name": "wessamfathi", "email": "wessam@lana.games" },
+  "author": {
+    "name": "Wessam Ibrahim",
+    "email": "wessamfathi@gmail.com"
+  },
   "homepage": "https://github.com/wessamfathi/suhail",
   "repository": "https://github.com/wessamfathi/suhail",
   "license": "MIT",
-  "keywords": ["orchestration", "planning", "agents", "pipeline", "workflow"]
+  "keywords": [
+    "claude-code",
+    "orchestration",
+    "planning",
+    "agents",
+    "subagents",
+    "pipeline",
+    "workflow"
+  ]
 }

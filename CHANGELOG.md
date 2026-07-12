@@ -2,7 +2,31 @@
 
 All notable changes to Suhail (formerly Northstar) are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+(Nothing yet.)
+
 ## [1.0.0] — 2026-07-12
+
+The first public release: the Suhail rename plus a full public-release hardening pass (every finding from the pre-release reviews resolved).
+
+### Fixed
+- **Tick scripts route every state and fail closed.** Part status `awaiting_plan_approval` now routes to a dedicated `part_plan_approval` gate — "Approve and review Parts individually" previously fell through to batch completion and declared the run done with zero Parts executed. Terminal `run_phase: "finished"` gets its own directive — bare `/su` after a clean run previously exited 2 and fabricated a blocker. Unroutable Part statuses are now a named error (exit 3), never silent completion; a missing `parts` array is a clear preflight error instead of a raw jq crash.
+- **Parallel level scouting actually happens.** INIT persisted a phase the tick scripts never routed to the batch handler, so scouts dispatched serially over ALL Parts — future-level Parts could be scouted before their dependencies were terminal. INIT (and level transitions) now route through `start_batch_scouting`, and batch scouting is scoped to `current_batch`.
+- **Per-Part guarantees hold in batched execution.** Every verified Part gets its own atomic commit, Manual-follow-ups checkpoint, and transition card — including the last Part of each level and of the run (previously skipped); the interactive level-boundary pause is restored. Dead handlers (`dispatch_verifier`, `advance_after_review`, `advance_to_part`) removed.
+- **Audit surface widened to actual repo state.** `files_changed` derives from `git status` snapshots around the executer dispatch (validated paths only), not the executer's self-report; self-report omissions are passed to the verifier; executed commands are audited via `## Commands run`. The trivial classification can no longer skip verification — the full review + security audit runs on every non-empty diff.
+- **Retries read the right artifacts.** The orchestrator and both readers resolve the latest `execution-attempt-K.md`; previously the stale attempt-1 file fed the diff, the verifier, and the commit on every retry.
+- **No-commit mode diffs against a per-Part baseline** (`git stash create`) instead of HEAD, so later Parts' reviews exclude earlier Parts' uncommitted changes.
+- **Reader/writer parity and escaping.** Quoted verdicts no longer emit invalid JSON with exit 0; a blank line after `## Verdict` no longer reads as a null verdict; CRLF blocker frontmatter parses on POSIX; `suhail-write.ps1` writes state.json without a UTF-8 BOM; `|` in Part titles/groups can't corrupt the STATUS.md table.
+- **Plugin-install lookups completed.** `/su-next` and `/su-auto` now check `${CLAUDE_PLUGIN_ROOT}` first — both dead-ended with "Cannot locate su.md" on plugin installs, the only supported distribution.
+- **Contract mismatches.** `/su-discover` now checks the exact success sentinel its planner emits (every successful plan write previously landed in the failure branch); `/su-init` detects an indexer blocker before sentinel checks (blocked stub intel no longer reads as success); su-discover-scout reads the real state-schema fields and no longer reports terminal runs as in-flight; the executer sources its check commands from the brief section the scout actually writes; the dependency parser accepts list forms (`Depends on Parts 2, 4, and 6`); invalid YAML frontmatter in `su-scout.md` and `su-discover.md` fixed.
+- **Windows without PowerShell 7 works:** explicit platform detection with a `powershell.exe` fallback (pwsh is not preinstalled on stock Windows).
+- INIT auto-archives a finished/aborted run's artifacts to `.suhail/archive/` instead of deleting them, honoring the never-delete-artifacts promise.
+
+### Added
+- **Committed regression harness (`tests/`)** covering the tick-script state matrix, reader/writer edge cases, and plugin-payload validation for both script families — plus CI (GitHub Actions: harness on bash and pwsh, shellcheck, PSScriptAnalyzer, forbidden-artifact check; SHA-pinned, least-privilege).
+- **Security model documented** (README + `SECURITY.md`): plan files are code-equivalent — run only plans you trust; executer command governance (destructive/network commands need plan justification; every command recorded); standing data-vs-instructions lines in the pipeline agents' prompts.
+- Community files: `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`, bug-report issue form, PR template.
 
 ### Changed
 - **Project renamed: Northstar → Suhail.** "Northstar" collided with several adjacent projects in the AI-agent and dev-tool space, so the project is rebranded to **Suhail** — the Arabic name for Canopus, the guiding star of Arab navigators. Same guiding-star identity, collision-free name. Everything else about the pipeline is unchanged; this release is the rename plus the version reset to 1.0.0 (the state-dir move is a breaking change, per the project's IPC-stability rule).
@@ -26,7 +50,7 @@ All notable changes to Suhail (formerly Northstar) are documented here. The form
 ## [0.15.0] — 2026-07-02
 
 ### Removed
-- **Copy-install scripts deleted.** `scripts/install.sh` and `scripts/install.ps1` are gone; distribution is plugin-only (`/plugin marketplace add wessamfathi/northstar` → `/plugin install northstar@northstar`). All references scrubbed from `README.md`, `CONTRIBUTING.md`, `CLAUDE.md`, `docs/extending.md`, and `docs/architecture.md`. The local-dev flow now installs the working copy as a plugin from a local marketplace. Decision recorded in `docs/decisions.md` (supersedes the 2026-05-14 install-scope decision). Drops support for pre-plugin Claude Code versions; the manual project/user-copy lookup steps in `commands/ns.md` remain for hand-copied installs.
+- **Copy-install scripts deleted.** `scripts/install.sh` and `scripts/install.ps1` are gone; distribution is plugin-only. Migration for pre-0.15 copy installs: delete the hand-copied `~/.claude/commands/ns*.md`, `~/.claude/commands/northstar*.md`, `~/.claude/commands/scripts/northstar-*`, and `~/.claude/agents/ns-*.md`, then install the plugin — stale copies shadow or duplicate the plugin versions (`/plugin marketplace add wessamfathi/northstar` → `/plugin install northstar@northstar`). All references scrubbed from `README.md`, `CONTRIBUTING.md`, `CLAUDE.md`, `docs/extending.md`, and `docs/architecture.md`. The local-dev flow now installs the working copy as a plugin from a local marketplace. Decision recorded in `docs/decisions.md` (supersedes the 2026-05-14 install-scope decision). Drops support for pre-plugin Claude Code versions; the manual project/user-copy lookup steps in `commands/ns.md` remain for hand-copied installs.
 
 ## [0.14.0] — 2026-07-02
 
@@ -54,7 +78,7 @@ All notable changes to Suhail (formerly Northstar) are documented here. The form
 ### Changed
 - **Docs/prose accuracy sweep** across `README.md`, `docs/architecture.md`, `docs/decisions.md`, `commands/ns-next.md`, `commands/ns-discover.md`, and the fixtures: corrected stale artifact names (`research.md` / `plan.md` → `brief.md`), non-existent per-Part states (`researching` / `planning` / `reviewing` / `auditing` → `scouting` / `executing` / `executed` / `verifying`), merged-role names (`researcher` / `planner` / `security-auditor` → `ns-scout` / `ns-verifier`), and the `ns-verifier` model in the architecture table (`sonnet` → `haiku`).
 - `install.ps1` parity with `install.sh`: added `-Help`, disabled positional binding so a bare positional path is rejected instead of silently binding to `-Project`, and aligned the STATUS.md artifact arrow glyph (`->` → `→`).
-- Repository prepared for public release: removed internal-only development artifacts, and removed internal-only `plans/`, `docs/script-extraction-candidates.md`, and `.claude/skills/` from the tree.
+- Repository prepared for public release: removed internal-only development artifacts (`plans/`, `docs/script-extraction-candidates.md`, `.claude/skills/`) from the tree.
 
 ## [0.12.0] — 2026-05-22
 
@@ -141,7 +165,7 @@ All notable changes to Suhail (formerly Northstar) are documented here. The form
 ### Added
 - **Speculative scout (B5).** Before each user-pause point (`master_plan_approval` AskUserQuestion and interactive part-completion AskUserQuestion), the orchestrator calls `next_eligible_part()` and speculatively dispatches a scout for the next batch leader (B5 pause point #1) or next in-batch Part (B5 pause point #2) in the same assistant turn. Artifacts are adopted if the user continues, or discarded (renamed to `*.speculative.md`) on Abort/Skip.
 - **Pipelined verifier+scout (B6).** In auto-advance mode (`batch_auto_approve == true` or `mode == "run-to"`), the verifier for Part N and a speculative scout for Part N+1 are dispatched in the same assistant turn, reducing wall-clock time per Part to `max(verifier, scout)`. Speculative artifacts are discarded if the verifier flags blockers and triggers re-execution.
-- `Speculative dispatch (B5/B6)` subsection in the orchestrator defining `next_eligible_part()`, the speculative scout dispatch procedure, Discard rule, and Adopt rule.
+- `Speculative dispatch (B5/B6)` subsection in the orchestrator defining `next_eligible_part()`, the speculative scout dispatch procedure, Discard rule, and Adopt rule. ("B5"/"B6" are the two speculation origins as recorded in `state.speculative.origin` — pause-point speculation and pipelined verifier+scout respectively; the letters are historical work-item ids.)
 - Second parallel-dispatch carve-out in `## Don't`: verifier-for-Part-N + scout-for-Part-N+1 in auto-advance mode is explicitly permitted with a documented safety argument.
 - `state.speculative` optional field (`{ part_id, origin }`) in the state schema.
 
@@ -150,6 +174,8 @@ All notable changes to Suhail (formerly Northstar) are documented here. The form
 - Plan SHA drift handler now invokes the Discard rule on any stale `state.speculative` before re-parsing or resuming.
 
 ## [0.6.0] — 2026-05-17
+
+> Version 0.5.0 was skipped — the numbering jumps from 0.4.0 to 0.6.0; no 0.5.x release ever existed.
 
 ### Added
 - **Parallel scout batching and master-plan approval.** DAG levels are computed at INIT; all level-0 scouts are dispatched in a single assistant turn as multiple parallel `Agent(...)` calls. After scouts complete, a single consolidated AskUserQuestion presents all Parts' plans together with four options: `Approve all and start executing`, `Approve and review Parts individually`, `Show full briefs`, `Abort`. After all Parts in a level complete, level N+1 scouts are dispatched in parallel automatically.
@@ -165,7 +191,7 @@ All notable changes to Suhail (formerly Northstar) are documented here. The form
 ## [0.4.0] — 2026-05-17
 
 ### Added
-- **Performance phase 1 — context-discipline wins across the role pipeline.** Six coordinated improvements land together, each targeting a specific source of wasted context or wasted dispatch in the role-subagent loop. (A1) The researcher now emits a stack-intel baseline so downstream roles inherit project conventions without re-discovering them. (A2) The planner's TL;DR section is gated as a hard contract — the orchestrator surfaces it on transition and refuses malformed deliverables. (A3) The executer emits early-exit signals (blocker.md vs. partial execution.md) so the orchestrator can short-circuit reviewer/auditor dispatch when no source-file work landed. (A4) The reviewer enforces a hard cap on per-review nits (five) so review.md stays bounded in context size regardless of how noisy the diff is. (A5) The security-auditor gains a checklist-coverage section that ties each finding back to a domain risk surfaced in research.md, making audit.md diffable across attempts. (A6) The indexer emits a sources manifest enumerating every file scanned so re-runs are reproducible and the manifest itself is a cache key.
+- **Performance phase 1 — context-discipline wins across the role pipeline.** Six coordinated improvements land together, each targeting a specific source of wasted context or wasted dispatch in the role-subagent loop. (A1) The researcher now emits a stack-intel baseline so downstream roles inherit project conventions without re-discovering them. (A2) The planner's TL;DR section is gated as a hard contract — the orchestrator surfaces it on transition and refuses malformed deliverables. (A3) The executer emits early-exit signals (blocker.md vs. partial execution.md) so the orchestrator can short-circuit reviewer/auditor dispatch when no source-file work landed. (A4) The reviewer enforces a hard cap on per-review nits (five) so review.md stays bounded in context size regardless of how noisy the diff is. (A5) The security-auditor gains a checklist-coverage section that ties each finding back to a domain risk surfaced in research.md, making audit.md diffable across attempts. (A6) The indexer emits a sources manifest enumerating every file scanned so re-runs are reproducible and the manifest itself is a cache key. (A1–A6 were the internal work-item ids for this phase; they appear nowhere in the shipped code.)
 
 ### Changed
 - State schema bumps `tool_version` to `0.4.0`.

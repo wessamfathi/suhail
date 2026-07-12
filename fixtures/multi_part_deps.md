@@ -8,14 +8,13 @@ Run with:
 ```
 
 **Expected behavior:**
-- After INIT, Suhail starts with Part 1 (the only Part with no unmet deps).
-- After Part 1 completes, the user is prompted to continue. Choosing Continue → Part 2.
-- After Part 2 completes, prompted again. Continue → Part 3.
-- After Part 3, prompted with "All Parts completed."
+- The dependency chain makes each Part its own level: Part 1 (level 0), Part 2 (level 1), Part 3 (level 2).
+- After INIT, Suhail scouts Part 1 and asks for master-plan approval; after Part 1 completes (commit + transition card), the level checkpoint asks to continue. Continue → Part 2's level, same rhythm; then Part 3.
+- After Part 3, the run-complete card appears with "All Parts completed."
 - Final artifacts in working dir: `.suhail-deps-1.txt`, `.suhail-deps-2.txt`, `.suhail-deps-3.txt`, each containing the marker shown below.
 - Suhail's STATUS.md shows all three Parts ✅ completed at the end.
 
-**Alternative run:** try `/su run-to part-3` instead. The pipeline should auto-advance through all three Parts without per-Part pauses, then revert to interactive mode and prompt at the end.
+**Alternative run:** try `/su run-to part-3` instead. The pipeline should auto-advance through all three levels without pauses, then revert to interactive mode and prompt at the end.
 
 After verifying, clean up:
 ```powershell

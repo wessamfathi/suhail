@@ -9,14 +9,14 @@ Run after install with:
 ```
 
 Expected outcome:
-- `.suhail/state.json` and `.suhail/STATUS.md` created.
-- Four artifacts under `.suhail/parts/part-1/` and `.suhail/parts/part-2/` (`brief.md`, `execution.md`, `review.md`, `audit.md`); Part 3 (trivial) skips su-scout and su-verifier — expect `brief.md`, `execution.md`, synthetic `review.md`/`audit.md` under `.suhail/parts/part-3/`.
+- `.suhail/state.json` and `.suhail/STATUS.md` created. Two dependency levels: Part 1 is level 0; Parts 2 and 3 (both depending on Part 1) form level 1 and are scouted together.
+- Four artifacts under `.suhail/parts/part-1/` and `.suhail/parts/part-2/` (`brief.md`, `execution.md`, `review.md`, `audit.md`). Part 3 (trivial) skips su-scout — its `brief.md` is a synthetic inline brief — but the su-verifier still runs on its non-empty diff, so expect real `review.md`/`audit.md` under `.suhail/parts/part-3/` too.
 - A new file `.suhail-smoketest.txt` in the working directory containing the single line `suhail smoke ok`.
-- A new file `.suhail-smoketest-2.txt` in the working directory containing the single line `suhail smoke ok 2` — created only after the user confirms the Part 2 external-dependency checkpoint.
-- After Part 2's su-scout finishes, Suhail pauses and surfaces the ⚠ external-dependency line (the `SUHAIL_SMOKE_TOKEN` env-var reminder) before asking to continue. This pause must fire even though no `run-to` flag is set.
-- Each Part's `brief.md` `### Verification` section opens with a verbatim quote of the Part body's `**Verification:**` block.
-- Reviewer verdict `clean`. Security auditor verdict `clean` for both Parts.
-- After completion, Suhail pauses and asks whether to continue (no further Parts exist; this is the run-complete prompt).
+- A new file `.suhail-smoketest-2.txt` in the working directory containing the single line `suhail smoke ok 2` — created only after the user confirms the external-dependency checkpoint.
+- After level 1's scouting finishes (before the master plan approval), Suhail pauses and surfaces Part 2's ⚠ external-dependency line (the `SUHAIL_SMOKE_TOKEN` env-var reminder). This pause must fire even though no `run-to` flag is set.
+- For the scouted Parts (1 and 2), `brief.md`'s `### Verification` section opens with a verbatim quote of the Part body's `**Verification:**` block. (Part 3's synthetic brief has no Verification section — expected.)
+- Reviewer verdict `clean` and security-auditor verdict `clean` for all three Parts.
+- After completion, Suhail shows the run-complete card and asks (Show summary / Done).
 
 After verifying, you can:
 - Delete `.suhail-smoketest.txt` and `.suhail-smoketest-2.txt`
@@ -38,7 +38,7 @@ Create a file at `.suhail-smoketest.txt` (in the current working directory) cont
 
 Create a file at `.suhail-smoketest-2.txt` (in the current working directory) containing the single line `suhail smoke ok 2`. If the file already exists, overwrite it. The file should contain exactly that line followed by a single trailing newline.
 
-This Part exists to exercise the orchestrator's external-dependency checkpoint: the su-scout must surface the manual action below as a ⚠ entry under `## External dependencies`, and the orchestrator must pause after scouting to confirm with the user before the su-executer runs.
+This Part exists to exercise the orchestrator's external-dependency checkpoint: the su-scout must surface the manual action below as a ⚠ entry under `### External dependencies`, and the orchestrator must pause after the level's scouting to confirm with the user before any su-executer runs.
 
 **Depends on:** Part 1
 

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Harness + lint (bash & pwsh)
+    runs-on: ubuntu-latest
+    steps:
+      # v4.2.2 — pinned by commit SHA (least-privilege supply chain)
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Regression harness (tick matrix, reader/writer edges, payload validation)
+        # ubuntu runners ship bash, jq, pwsh, and python3+PyYAML — both script
+        # families and the frontmatter checks run here.
+        run: ./tests/run-all.sh
+
+      - name: bash -n + shellcheck
+        run: |
+          # bash -n takes ONE script; extra args become its positional params
+          for f in scripts/*.sh tests/*.sh; do bash -n "$f"; done
+          # warning gate: warnings and errors fail; info/style notes
+          # (SC1091 source-following, SC2016 literal backticks) do not
+          shellcheck --severity=warning scripts/*.sh tests/*.sh
+
+      - name: PSScriptAnalyzer (errors fail; warnings reported)
+        shell: pwsh
+        run: |
+          $results = Invoke-ScriptAnalyzer -Path scripts -Recurse
+          $results | Format-Table -AutoSize | Out-String | Write-Host
+          $errors = @($results | Where-Object Severity -eq 'Error')
+          if ($errors.Count -gt 0) { exit 1 }
+
+      # Forbidden-release-artifact checks live in tests/payload-checks.sh
+      # (single source of truth), which the harness step above already ran.

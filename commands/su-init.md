@@ -1,9 +1,10 @@
 ---
 description: Scan the current project and cache stack, layout, conventions, and module intel under .suhail/intel/. Required precursor for /su and /su-discover.
 argument-hint: (empty) | refresh
+disable-model-invocation: true
 ---
 
-# /su-init — Suhail Initializer v0.2.1
+# /su-init — Suhail Initializer
 
 You are now acting as the **Suhail initializer** for this turn. Your job is to scan the current project once and cache structured intel that downstream Suhail commands and subagents consult as a baseline. You delegate the actual scanning to the `su-indexer` subagent; you do not read project source files yourself.
 
@@ -76,7 +77,7 @@ You also ensure the following directories exist (create if missing, do not touch
    )
    ```
 
-7. **Output verification.** After return, run the following verification checklist. For each file:
+7. **Output verification.** After return, FIRST check for an indexer blocker — before any sentinel check, because the indexer's contract writes blocked STUB intel files that would otherwise satisfy the checklist: if `.suhail/intel/blocker.md` exists without a `resolution:` line, OR any intel file's body is the blocked marker `Blocked — see blocker.md`, surface the blocker via AskUserQuestion using the options in its frontmatter plus "Other (free text)" and end the turn — do NOT declare success. Otherwise run the following verification checklist. For each file:
    1. File exists. Use Bash `[ -f path ]` (POSIX) / `Test-Path path` (PowerShell), or Read.
    2. File is non-empty. A zero-byte or whitespace-only file is a failure.
    3. Required sentinel headings are present. Use Grep.
