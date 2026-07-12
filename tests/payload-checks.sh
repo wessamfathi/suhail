@@ -45,29 +45,34 @@ assert_eq "plugin name matches marketplace entry" \
   "$(jq -r '.plugins[0].name' .claude-plugin/marketplace.json)"
 
 # --- version sync (su.md heading, su.md tool_version, README footer, plugin.json, CHANGELOG) ---
-v_head="$(grep -m1 -oP '^# /su — Suhail v\K[0-9.]+' commands/su.md)"
-v_tool="$(grep -m1 -oP '"tool_version": "\K[0-9.]+' commands/su.md)"
-v_readme="$(grep -m1 -oP '^Suhail v\K[0-9]+\.[0-9]+\.[0-9]+' README.md)"
+# Extraction uses sed, not grep -P — BSD grep (macOS) has no -P.
+v_head="$(sed -n 's/^# \/su — Suhail v\([0-9.][0-9.]*\).*$/\1/p' commands/su.md | head -1)"
+v_tool="$(sed -n 's/.*"tool_version": "\([0-9.][0-9.]*\)".*/\1/p' commands/su.md | head -1)"
+v_readme="$(sed -n 's/^Suhail v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/p' README.md | head -1)"
 v_plugin="$(jq -r .version .claude-plugin/plugin.json)"
-v_chlog="$(grep -m1 -oP '^## \[\K[0-9.]+' CHANGELOG.md)"
+v_chlog="$(sed -n 's/^## \[\([0-9.][0-9.]*\)\].*/\1/p' CHANGELOG.md | head -1)"
 assert_eq "version sync: su.md heading vs tool_version" "$v_head" "$v_tool"
 assert_eq "version sync: su.md vs README footer"        "$v_head" "$v_readme"
 assert_eq "version sync: su.md vs plugin.json"          "$v_head" "$v_plugin"
 assert_eq "version sync: su.md vs latest CHANGELOG"     "$v_head" "$v_chlog"
 
 # --- directive <-> handler reachability ---------------------------------------------
+# The ps1 script emits JSON both as plain single-quoted strings and as
+# backtick-escaped interpolated strings; stripping backticks once lets a
+# single fixed-string match cover both forms.
+ps1_tick_normalized="$(tr -d '`' < scripts/suhail-tick.ps1)"
+
 directives=(start_batch_scouting dispatch_scout advance_scouting await_approval
             dispatch_executer start_batch_verifying complete finished needs_user
             aborted noop)
 for a in "${directives[@]}"; do
-  if grep -q "\"action\":\"$a\"" scripts/suhail-tick.sh && grep -q "\"action\`\":\`\"$a" scripts/suhail-tick.ps1; then
-    pass "directive emitted by both tick scripts: $a"
-  elif grep -q "\"action\":\"$a\"" scripts/suhail-tick.sh && grep -qF "\"action\":\"$a\"" scripts/suhail-tick.ps1; then
+  if grep -qF "\"action\":\"$a\"" scripts/suhail-tick.sh \
+     && printf '%s' "$ps1_tick_normalized" | grep -qF "\"action\":\"$a"; then
     pass "directive emitted by both tick scripts: $a"
   else
     fail "directive emitted by both tick scripts: $a" "missing from one script"
   fi
-  if grep -qE "^### .?\`?$a\`?" commands/su.md; then
+  if grep -q "^### \`$a\`" commands/su.md; then
     pass "handler exists in su.md: $a"
   else
     fail "handler exists in su.md: $a" "no ### handler heading"
@@ -75,7 +80,7 @@ for a in "${directives[@]}"; do
 done
 
 # no directive emitted without a handler, no dead handler without an emitter
-handlers="$(grep -oP '^### `\K[a-z_]+' commands/su.md | sort -u)"
+handlers="$(sed -n 's/^### `\([a-z_]*\)`.*/\1/p' commands/su.md | sort -u)"
 for h in $handlers; do
   if printf '%s\n' "${directives[@]}" | grep -qx "$h"; then
     pass "handler is reachable from tick scripts: $h"
@@ -84,10 +89,14 @@ for h in $handlers; do
   fi
 done
 
-# every run_phase enum value in su.md's schema is routed by both tick scripts
-phases="$(grep -m1 -oP '`run_phase` values: \K[^.]+' commands/su.md | tr -d '\` ' | tr '|' ' ')"
+# every run_phase enum value in su.md's schema is routed by both tick scripts.
+# Extract the .sh case-arm labels exactly (split on |) and require whole-word
+# membership — substring fallbacks could false-pass a phase name contained in
+# another arm's label.
+phases="$(sed -n 's/.*`run_phase` values: \([^.]*\)\..*/\1/p' commands/su.md | head -1 | tr -d '\` ' | tr '|' ' ')"
+sh_arms="$(sed -n 's/^[[:space:]]*\([a-z_|][a-z_|]*\))$/\1/p' scripts/suhail-tick.sh | tr '|' '\n')"
 for p in $phases; do
-  if grep -qE "^  $p\)|\|$p\)|  $p\|" scripts/suhail-tick.sh || grep -qE "\b$p\)" scripts/suhail-tick.sh || grep -q "$p" <(grep -oP '^\s+\K[a-z_|]+(?=\))' scripts/suhail-tick.sh | tr '|' '\n'); then
+  if printf '%s\n' "$sh_arms" | grep -qx "$p"; then
     pass "run_phase routed in tick.sh: $p"
   else
     fail "run_phase routed in tick.sh: $p" "no case arm"
@@ -135,7 +144,7 @@ while IFS= read -r f; do
     [[ -z "$t" ]] && continue
     case "$t" in http*|mailto:*) continue ;; esac
     if [[ ! -e "$(dirname "$f")/$t" && ! -e "$t" ]]; then broken="$broken $f->$t"; fi
-  done < <(grep -oP '\]\(\K[^)]+' "$f" 2>/dev/null || true)
+  done < <(grep -o '\]([^)]*)' "$f" 2>/dev/null | sed 's/^](//; s/)$//' || true)
 done < <(git ls-files '*.md')
 if [[ -z "$broken" ]]; then pass "all relative markdown links resolve"; else fail "all relative markdown links resolve" "$broken"; fi
 

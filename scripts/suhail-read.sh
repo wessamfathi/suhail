@@ -84,8 +84,8 @@ extract_verdict() {
     { sub(/\r$/, "") }
     /^## Verdict/ { found=1; next }
     found {
-      if ($0 ~ /^#/) exit
       gsub(/^[ \t]+|[ \t]+$/, "")
+      if ($0 ~ /^#/) exit
       if (length($0)) { print; exit }
     }
   ' "$file")"
@@ -171,8 +171,8 @@ BLOCKER_FILE="$PART_DIR/blocker.md"
 # for K > 1). Read the LATEST attempt so retry runs are summarized from the
 # artifact that was actually produced, not the stale attempt-1 file.
 EXECUTION_FILE="$PART_DIR/execution.md"
-latest_attempt="$( (ls "$PART_DIR"/execution-attempt-*.md 2>/dev/null || true) \
-  | sed 's/.*execution-attempt-\([0-9][0-9]*\)\.md/\1/' | sort -n | tail -1)"
+latest_attempt="$( { (ls "$PART_DIR"/execution-attempt-*.md 2>/dev/null || true) \
+  | sed -n 's/.*\/execution-attempt-\([0-9][0-9]*\)\.md$/\1/p' | sort -n | tail -1; } || true)"
 if [[ -n "$latest_attempt" ]]; then
   EXECUTION_FILE="$PART_DIR/execution-attempt-${latest_attempt}.md"
 fi

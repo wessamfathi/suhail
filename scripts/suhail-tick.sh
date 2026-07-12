@@ -200,12 +200,20 @@ case "$run_phase" in
     ;;
 
   batch_scouting)
+    # Route blockers first — a halted scout must reach the user before any
+    # re-dispatch can clobber artifacts or loop on a deterministic failure.
+    blocked_part="$(batch_first needs_user)"
+    if [[ -n "$blocked_part" ]]; then
+      printf '{"action":"needs_user","part_id":"%s"}\n' "$blocked_part"
+      exit 0
+    fi
+
     # First part in the CURRENT BATCH still needing a scout/brief. Parts at
     # future levels are pending too — they must not be scouted early.
     pending_part="$(batch_first scouting pending)"
 
     if [[ -z "$pending_part" ]]; then
-      printf '{"action":"await_approval","reason":"all parts scouted"}\n'
+      printf '{"action":"await_approval","reason":"master_plan_approval"}\n'
     elif brief_exists "$pending_part"; then
       printf '{"action":"advance_scouting","part_id":"%s"}\n' "$pending_part"
     else

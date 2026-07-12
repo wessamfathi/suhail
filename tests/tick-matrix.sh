@@ -72,8 +72,13 @@ for lang in "${LANGS[@]}"; do
 
   # part-2 (level 1) is pending but OUTSIDE current_batch — must NOT be scouted
   d="$(mkstate batch_scouting null false '["part-1"]' "[$P1_GATE, $P2_PENDING_L1]")"
-  assert_directive "batch_scouting: only out-of-batch parts pending -> all parts scouted" "$lang" "$d/state.json" \
-    '{"action":"await_approval","reason":"all parts scouted"}'
+  assert_directive "batch_scouting: only out-of-batch parts pending -> master approval" "$lang" "$d/state.json" \
+    '{"action":"await_approval","reason":"master_plan_approval"}'
+
+  # a scout-blocked Part must reach the user before any re-dispatch
+  d="$(mkstate batch_scouting null false '["part-1","part-2"]' "[$P1_NEEDS, $P2_PENDING_L1]")"
+  assert_directive "batch_scouting: needs_user routes before scouting" "$lang" "$d/state.json" \
+    '{"action":"needs_user","part_id":"part-1"}'
 
   # --- master plan approval ---------------------------------------------------
   d="$(mkstate master_plan_approval null false '["part-1"]' "[$P1_GATE]")"

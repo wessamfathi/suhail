@@ -181,7 +181,7 @@ Add `.suhail/` to your target repo's `.gitignore`.
 
 ## Safety
 
-- The **su-executer never pushes or deploys**. It flags deploys under "Manual follow-ups required" in `execution.md` for you to run. Destructive and network-touching commands require an explicit justification in the plan or brief, and every command it runs is recorded in `execution.md`.
+- The **su-executer never pushes or deploys**. It flags deploys under "Manual follow-ups required" in `execution.md` for you to run. Command governance (justification for destructive/network commands, the `## Commands run` record) is covered in the Security model above and in [`SECURITY.md`](SECURITY.md).
 - **Atomic per-Part commits (on by default).** After a Part is verified clean, the orchestrator creates one git commit containing only that Part's changed files — derived from actual `git status`, not the executer's self-report — so you can review, push, or revert each Part's commit on its own. Skipped Parts and non-git directories are never committed. The orchestrator never pushes, deploys, amends, or force-pushes. Disable for a run with `no-commit` (e.g. `/su no-commit <plan>` or `/su autorun no-commit <plan>`); with auto-commit off, the interactive "Commit first" option still lets you commit on demand.
 - The **su-verifier** runs two passes: a review pass (correctness, regressions, convention drift) and an audit pass (security, injection, secrets, input validation). The audit runs for every non-empty diff — no plan classification can skip it. Project-specific risks travel via the su-scout's `Domain risks worth flagging to auditor` section in `brief.md`. Domain knowledge is never hardcoded into the su-verifier.
 
