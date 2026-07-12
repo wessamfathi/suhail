@@ -2,7 +2,7 @@
 name: su-discover-scout
 description: One-shot read-only scanner that grounds /su-discover Phase 0. Dispatched once before the interview begins. Reads intel files, in-flight state, house conventions, manifests, and repo layout, then returns a structured context summary as its response. Writes nothing.
 tools: Read, Glob, Grep
-model: claude-haiku-4-5-20251001
+model: haiku
 color: yellow
 ---
 
@@ -39,7 +39,7 @@ Work through these steps in order. If a file does not exist, note it as absent a
    - `<repo-root>/.suhail/intel/conventions.md`
    - `<repo-root>/.suhail/intel/modules.md`
 
-2. **Check for an in-flight run.** Attempt to read `<repo-root>/.suhail/state.json`. If the file exists, extract only these three fields: `status`, `currentPart`, and `planPath`. Do not echo the full file contents.
+2. **Check for an in-flight run.** Attempt to read `<repo-root>/.suhail/state.json`. If the file exists, extract only these three fields: `run_phase`, `current_part_id`, and `plan_path` (the schema's real field names). A run is in flight only when `run_phase` is NOT `finished` and NOT `aborted` and the top-level `aborted` flag is not true — a terminal run is reported as "None detected (terminal state present)". Do not echo the full file contents.
 
 3. **Read house conventions.** Read `<repo-root>/CLAUDE.md` if present. Read `<repo-root>/AGENTS.md` if present.
 
@@ -64,7 +64,7 @@ Return a structured context summary as your response (not a file on disk). Use t
 <distilled key points from stack, layout, conventions, modules — not raw file dumps>
 
 ### In-flight run
-<"None detected" | "In flight: status=<status>, part=<currentPart>, plan=<planPath>">
+<"None detected" | "None detected (terminal state present)" | "In flight: run_phase=<run_phase>, part=<current_part_id>, plan=<plan_path>">
 
 ### House conventions
 <distilled key rules from CLAUDE.md / AGENTS.md>
