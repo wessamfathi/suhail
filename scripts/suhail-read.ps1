@@ -70,15 +70,17 @@ function Get-Verdict {
     if (-not (Test-Path $FilePath)) {
         return $null
     }
-    $lines = Get-Content $FilePath
+    # First NON-EMPTY line after the heading (a blank line between the
+    # heading and the verdict is tolerated); stop at the next heading.
+    $lines = @(Get-Content $FilePath)
     for ($i = 0; $i -lt $lines.Count; $i++) {
         if ($lines[$i] -match '^## Verdict') {
-            if ($i + 1 -lt $lines.Count) {
-                $val = $lines[$i + 1].Trim()
-                if ($val -ne "") {
-                    return $val
-                }
+            for ($j = $i + 1; $j -lt $lines.Count; $j++) {
+                $val = $lines[$j].Trim()
+                if ($val.StartsWith("#")) { return $null }
+                if ($val -ne "") { return $val }
             }
+            return $null
         }
     }
     return $null
@@ -167,8 +169,24 @@ function Get-BlockerFields {
 
 $reviewFile    = Join-Path $PartDir "review.md"
 $auditFile     = Join-Path $PartDir "audit.md"
-$executionFile = Join-Path $PartDir "execution.md"
 $blockerFile   = Join-Path $PartDir "blocker.md"
+
+# Execution artifacts are attempt-numbered on retries (execution-attempt-K.md
+# for K > 1). Read the LATEST attempt so retry runs are summarized from the
+# artifact that was actually produced, not the stale attempt-1 file.
+$executionFile = Join-Path $PartDir "execution.md"
+$attemptFiles = Get-ChildItem -Path $PartDir -Filter "execution-attempt-*.md" -ErrorAction SilentlyContinue
+if ($null -ne $attemptFiles -and @($attemptFiles).Count -gt 0) {
+    $latest = @($attemptFiles) |
+        ForEach-Object {
+            if ($_.Name -match '^execution-attempt-(\d+)\.md$') {
+                [PSCustomObject]@{ N = [int]$Matches[1]; File = $_.FullName }
+            }
+        } |
+        Sort-Object -Property N |
+        Select-Object -Last 1
+    if ($null -ne $latest) { $executionFile = $latest.File }
+}
 
 $reviewVerdict      = Get-Verdict -FilePath $reviewFile
 $auditVerdict       = Get-Verdict -FilePath $auditFile

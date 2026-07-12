@@ -68,7 +68,11 @@ fi
 # ---------------------------------------------------------------------------
 
 # Extract ## Verdict value from review.md or audit.md.
-# Prints "null" (JSON null literal) if file absent; else the verdict word.
+# Takes the first NON-EMPTY line after the heading (a blank line between the
+# heading and the verdict is tolerated), stops at the next heading, trims
+# edge whitespace while preserving internal spaces, and JSON-escapes the
+# value via jq so quotes/backslashes in a verdict can never emit invalid
+# JSON. Prints "null" (JSON null literal) if the file or verdict is absent.
 extract_verdict() {
   local file="$1"
   if [[ ! -f "$file" ]]; then
@@ -76,11 +80,19 @@ extract_verdict() {
     return
   fi
   local verdict
-  verdict="$(awk '/^## Verdict/ { found=1; next } found { print; exit }' "$file" | tr -d '[:space:]')"
+  verdict="$(awk '
+    { sub(/\r$/, "") }
+    /^## Verdict/ { found=1; next }
+    found {
+      if ($0 ~ /^#/) exit
+      gsub(/^[ \t]+|[ \t]+$/, "")
+      if (length($0)) { print; exit }
+    }
+  ' "$file")"
   if [[ -z "$verdict" ]]; then
     echo "null"
   else
-    printf '"%s"' "$verdict"
+    printf '%s' "$verdict" | jq -Rs '.'
   fi
 }
 
@@ -115,14 +127,16 @@ extract_blocker() {
   fi
   BLOCKER_PRESENT="true"
 
-  # Extract lines between first pair of --- delimiters
+  # Extract lines between first pair of --- delimiters. CR is stripped first
+  # so blocker.md files written with CRLF line endings parse identically to
+  # the PowerShell reader.
   local frontmatter
-  frontmatter="$(awk '/^---$/ { delim++; if (delim == 2) exit; next } delim == 1 { print }' "$file")"
+  frontmatter="$(awk '{ sub(/\r$/, "") } /^---$/ { delim++; if (delim == 2) exit; next } delim == 1 { print }' "$file")"
 
   local from_raw severity_raw options_raw
 
-  from_raw="$(echo "$frontmatter" | grep '^from:' | head -1 | sed 's/^from:[[:space:]]*//' | tr -d '[:space:]')"
-  severity_raw="$(echo "$frontmatter" | grep '^severity:' | head -1 | sed 's/^severity:[[:space:]]*//' | tr -d '[:space:]')"
+  from_raw="$(echo "$frontmatter" | grep '^from:' | head -1 | sed 's/^from:[[:space:]]*//; s/[[:space:]]*$//')"
+  severity_raw="$(echo "$frontmatter" | grep '^severity:' | head -1 | sed 's/^severity:[[:space:]]*//; s/[[:space:]]*$//')"
   options_raw="$(echo "$frontmatter" | grep '^options:' | head -1 | sed 's/^options:[[:space:]]*//')"
 
   if [[ -z "$from_raw" ]]; then
@@ -151,8 +165,17 @@ extract_blocker() {
 
 REVIEW_FILE="$PART_DIR/review.md"
 AUDIT_FILE="$PART_DIR/audit.md"
-EXECUTION_FILE="$PART_DIR/execution.md"
 BLOCKER_FILE="$PART_DIR/blocker.md"
+
+# Execution artifacts are attempt-numbered on retries (execution-attempt-K.md
+# for K > 1). Read the LATEST attempt so retry runs are summarized from the
+# artifact that was actually produced, not the stale attempt-1 file.
+EXECUTION_FILE="$PART_DIR/execution.md"
+latest_attempt="$( (ls "$PART_DIR"/execution-attempt-*.md 2>/dev/null || true) \
+  | sed 's/.*execution-attempt-\([0-9][0-9]*\)\.md/\1/' | sort -n | tail -1)"
+if [[ -n "$latest_attempt" ]]; then
+  EXECUTION_FILE="$PART_DIR/execution-attempt-${latest_attempt}.md"
+fi
 
 review_verdict="$(extract_verdict "$REVIEW_FILE")"
 audit_verdict="$(extract_verdict "$AUDIT_FILE")"
