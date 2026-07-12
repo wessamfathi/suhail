@@ -1,5 +1,6 @@
 ---
 description: Abort the current Suhail run by marking its state aborted. Does not delete artifacts.
+disable-model-invocation: true
 ---
 
 # /su-abort — Suhail run aborter

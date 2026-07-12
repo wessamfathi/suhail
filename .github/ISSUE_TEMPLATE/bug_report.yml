@@ -1,0 +1,53 @@
+name: Bug report
+description: A Suhail run misbehaved — a command, script, or pipeline step did the wrong thing.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks — the fields below are what make pipeline problems diagnosable. `run_phase` and per-Part statuses live in `.suhail/state.json`; the run's step-by-step record lives under `.suhail/parts/<id>/`.
+  - type: input
+    id: claude-code-version
+    attributes:
+      label: Claude Code version
+      description: Output of `claude --version` (or Help → About in the app).
+    validations:
+      required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Suhail plugin version
+      description: The `version` shown by `/plugin` for suhail@suhail (or `.claude-plugin/plugin.json` in your checkout).
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: OS / script family
+      description: Which helper-script family ran (the .sh and .ps1 implementations are parallel and can diverge).
+      options:
+        - macOS / Linux (bash + jq)
+        - Windows (pwsh 7+)
+        - Windows (Windows PowerShell 5.1)
+    validations:
+      required: true
+  - type: input
+    id: run-phase
+    attributes:
+      label: run_phase and Part statuses at failure
+      description: From `.suhail/state.json` — e.g. `run_phase=executing, part-2=awaiting_plan_approval`.
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened vs. what you expected
+      description: Include the orchestrator's narration lines around the failure and any error output.
+    validations:
+      required: true
+  - type: textarea
+    id: plan-snippet
+    attributes:
+      label: Plan snippet (if plan-related)
+      description: The `### Part N — ...` section(s) involved, if the problem relates to parsing or a specific Part.
+      render: markdown

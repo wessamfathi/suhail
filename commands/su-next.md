@@ -1,5 +1,6 @@
 ---
 description: Auto-advance the current Suhail run by exactly one logical step.
+disable-model-invocation: true
 ---
 
 # /su-next — Suhail auto-stepper
@@ -33,7 +34,7 @@ Inject the batch Approve-all resolution without presenting an AskUserQuestion. T
 5. Set `run_phase = "executing"`.
 6. Update `updated_at` to the current ISO 8601 timestamp.
 7. Write the full state.json back (per the state-machine invariant: always write the full file from the in-memory model, never partial-update), via `suhail-write` using the same platform-detection logic as the `awaiting_plan_approval` branch below.
-8. Locate `su.md` using the two-location lookup below, read it, and follow its instructions for **exactly one tick** as if the orchestrator had been invoked with empty arguments. With `current_part_id` now pointing at a Part whose `status = "executing"`, this tick dispatches the executer for that Part.
+8. Locate `su.md` using the lookup below, read it, and follow its instructions for **exactly one tick** as if the orchestrator had been invoked with empty arguments. With `current_part_id` now pointing at a Part whose `status = "executing"`, this tick dispatches the executer for that Part.
 9. After the single re-tick, end the turn. Do NOT loop further regardless of mode.
 
 This checkpoint is checked before the `current_step`-based branches below because at a batch checkpoint, `current_step` is a per-Part field that has not been advanced past its prior value and does not distinguish this state — `run_phase` is the authoritative signal here.
@@ -55,7 +56,7 @@ This auto-approval intentionally bypasses the user's plan-review gate. Apply it 
 
 For `pending`, `scouting`, `executing`, `executed`, `verifying`:
 
-1. Locate `su.md` using the two-location lookup below.
+1. Locate `su.md` using the lookup below.
 2. Read it and follow its instructions for **exactly one tick**, treating this turn as if the user had typed `/su continue` (empty arguments).
 3. Do NOT loop, even if `mode == "run-to"`. After the single tick, end the turn.
 
@@ -80,4 +81,4 @@ Do not duplicate or summarize the orchestrator logic here. The canonical state m
 - Do not INIT a run. If `state.json` is absent, refuse per Guard 1 — never accept a plan path.
 - Do not resolve blockers, attempt retries, or mutate `blocker.md`. Refuse per Guard 3 and let the user route through `/su`.
 - Do not inject an implicit approval outside the two sanctioned cases: `current_step == "awaiting_plan_approval"` (per-Part) and `run_phase == "master_plan_approval"` (batch checkpoint).
-- Do not modify the state schema. The `awaiting_plan_approval` branch writes only `auto_approve_planner` and `updated_at`. The `master_plan_approval checkpoint` branch writes only `batch_auto_approve`, `run_phase`, the `status` of every Part in `current_batch`, `current_part_id`, and `updated_at`.
+- Do not modify the state schema. The `awaiting_plan_approval` branch writes only `auto_approve_planner`, the gated Part's `status`, and `updated_at`. The `master_plan_approval checkpoint` branch writes only `batch_auto_approve`, `run_phase`, the `status` of every Part in `current_batch`, `current_part_id`, and `updated_at`.

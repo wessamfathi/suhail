@@ -1,5 +1,6 @@
 ---
 description: Auto-detect the most recent plan and run it in autorun mode.
+disable-model-invocation: true
 ---
 
 # /su-auto — Suhail auto-runner

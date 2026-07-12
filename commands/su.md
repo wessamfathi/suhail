@@ -1,6 +1,7 @@
 ---
 description: Execute any structured plan via scout/executer/verifier subagents with state persistence and per-Part pauses. Generic — works against any codebase.
 argument-hint: <plan-path> | autorun <plan-path> | no-commit <plan-path> | (empty) | retry | run-to <part-id>
+disable-model-invocation: true
 ---
 
 # /su — Suhail v1.0.0

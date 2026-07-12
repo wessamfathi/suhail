@@ -1,5 +1,6 @@
 ---
 description: Mark the current Suhail Part skipped and optionally advance to the next.
+disable-model-invocation: true
 ---
 
 # /su-skip — Suhail Part skipper
@@ -40,7 +41,7 @@ Do not duplicate or summarize the orchestrator logic here. The canonical state m
 ## Don't
 
 - Do not accept any arguments. This command is zero-argument; ignore `$ARGUMENTS` entirely.
-- Do not compute the next Part yourself — mark the current Part skipped and let the tick script select the next eligible Part.
+- Do not compute anything beyond the skip target — mark it skipped and let the tick routing advance the run.
 - Do not dispatch a scout, executer, or verifier directly. Advancement goes through `su.md`.
 - Do not write `state.json` directly — always go through `suhail-write` so `STATUS.md` stays in sync.
 - Do not skip more than one Part per invocation. To skip several, run `/su-skip` repeatedly.
