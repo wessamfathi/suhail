@@ -9,3 +9,6 @@
 *.ps1  text eol=lf
 *.md   text eol=lf
 *.json text eol=lf
+
+# Count markdown in language stats — this is a markdown-first project.
+*.md linguist-detectable=true
