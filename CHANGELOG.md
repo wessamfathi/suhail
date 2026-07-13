@@ -4,7 +4,8 @@ All notable changes to Suhail (formerly Northstar) are documented here. The form
 
 ## [Unreleased]
 
-(Nothing yet.)
+### Added
+- Feature-request issue form (`.github/ISSUE_TEMPLATE/feature_request.yml`) alongside the existing bug-report form.
 
 ## [1.0.0] — 2026-07-12
 
