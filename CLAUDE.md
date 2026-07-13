@@ -23,7 +23,7 @@ LICENSE                # MIT.
 
 ## Key architectural facts (do not forget)
 
-- **The orchestrator is a slash command, not a subagent.** It lives in `commands/su.md`. Earlier (v0.1.0) it was at `agents/suhail.md`; that did not work because Claude Code subagents cannot spawn nested subagents. The slash command body is injected into the top-level session, which can use the Agent tool to dispatch role subagents. Do not move it back into `agents/`. See `docs/architecture.md` § "Why the orchestrator lives in the slash command".
+- **The orchestrator is a slash command, not a subagent.** It lives in `commands/su.md`. Earlier (v0.1.0) it was at `agents/suhail.md`; at the time that could not work because Claude Code subagents could not spawn nested subagents. Nested subagents have existed since Claude Code v2.1.172 (depth-limited), but the binding constraint today is a different one: `AskUserQuestion` — and interactive gates generally — is unavailable to subagents, and the orchestrator is built around interactive gates. The slash command body is injected into the top-level session, which can use the Agent tool to dispatch role subagents and can ask the user questions. Do not move it back into `agents/`. See `docs/architecture.md` § "Why the orchestrator lives in the slash command".
 - **Subagent IPC is files-only.** The orchestrator passes paths in prompts; subagents read inputs from disk and write outputs to disk. The orchestrator never echoes subagent bodies into the top-level conversation. Preserve this contract — it's why context stays bounded.
 - **Subagents must not coordinate directly.** Su-scout → su-executer is one-way. The su-verifier runs independently after the su-executer.
 - **Domain knowledge flows through one channel.** The su-verifier's audit pass is intentionally generic. Project-specific risks reach it only through `brief.md`'s `Domain risks worth flagging to auditor` section. Do not bake domain rules into the su-verifier's prompt.
@@ -67,10 +67,10 @@ Suhail is hard to unit-test — it's a prompt pipeline. The practical test is en
    ```
    This loads the current `agents/`, `commands/`, and `scripts/` from the working copy into the plugin cache. After editing, `/plugin marketplace update suhail` then `/reload-plugins` to refresh.
 2. Open a fresh Claude Code session in the repo root.
-3. Run `/su fixtures/test_plan.md` and walk it through. Expected behaviors are documented at the top of each fixture file.
+3. Run `/suhail:su fixtures/test_plan.md` and walk it through (plugin-installed commands are namespaced; the unqualified `/su` forms apply only when the files are loaded as project/user commands). Expected behaviors are documented at the top of each fixture file.
 4. After each run, clean up:
    ```powershell
-   /su-abort       # if still in-flight
+   /suhail:su-abort       # if still in-flight
    Remove-Item -Recurse -Force .suhail
    Remove-Item -Force .suhail-*.txt -ErrorAction SilentlyContinue
    ```

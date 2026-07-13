@@ -22,7 +22,7 @@ To work on Suhail with Suhail (recommended, you'll catch contract regressions im
 /plugin install suhail@suhail
 ```
 
-The repo doubles as its own marketplace (`.claude-plugin/marketplace.json`), so this installs the working copy — commands, agents, and `scripts/` — into the plugin cache. Because runtime scripts then resolve via `${CLAUDE_PLUGIN_ROOT}/scripts/` (a frozen copy), an in-flight run is never disturbed by edits to your working tree.
+The repo doubles as its own marketplace (`.claude-plugin/marketplace.json`), so this installs the working copy — commands, agents, and `scripts/` — into the plugin cache. Because runtime scripts then resolve via `${CLAUDE_PLUGIN_ROOT}/scripts/` (a frozen copy), an in-flight run is never disturbed by edits to your working tree. Plugin-installed commands are namespaced — invoke them as `/suhail:su`, `/suhail:su-abort`, and so on; the unqualified `/su` forms resolve only when the command files are loaded as project or user commands.
 
 After editing any command, agent, or script, refresh the installed copy:
 
@@ -43,13 +43,13 @@ Two layers:
 
 1. Run the smoke test:
    ```
-   /su fixtures/test_plan.md
+   /suhail:su fixtures/test_plan.md
    ```
    Walk it through. Expected outcomes are documented at the top of each fixture.
 2. For changes that touch dependency handling, multi-Part flow, blocker protocols, or the skip flow, run the additional fixtures (see `fixtures/README.md`).
 3. After each run, clean up so the next run starts fresh:
    ```powershell
-   /su-abort
+   /suhail:su-abort
    .\scripts\suhail-clean.ps1
    # (POSIX: ./scripts/suhail-clean.sh)
    ```

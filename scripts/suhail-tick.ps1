@@ -110,19 +110,23 @@ function Brief-Exists {
 # ---------------------------------------------------------------------------
 
 # Batch-First — lowest-numbered part in current_batch whose status is one of
-# the given statuses. Empty current_batch falls back to all parts (defensive).
+# the given statuses (sorted by the numeric suffix of the id, not parts array
+# order). Empty current_batch falls back to all parts (defensive).
 function Batch-First {
     param([string[]]$Statuses)
     $batch = @()
     if ($null -ne $stateJson.current_batch) { $batch = @($stateJson.current_batch) }
+    $candidates = @()
     foreach ($part in $stateJson.parts) {
         if ($Statuses -contains $part.status) {
             if ($batch.Count -eq 0 -or $batch -contains $part.id) {
-                return $part.id
+                $candidates += $part
             }
         }
     }
-    return $null
+    if ($candidates.Count -eq 0) { return $null }
+    $sorted = @($candidates | Sort-Object { [int]($_.id -replace '^part-', '') })
+    return $sorted[0].id
 }
 
 # Batch-Directive — shared routing for the executing and batch_verifying

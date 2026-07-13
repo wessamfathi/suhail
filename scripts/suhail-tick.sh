@@ -103,18 +103,20 @@ brief_exists() {
 # ---------------------------------------------------------------------------
 
 # batch_first <status> [<status> ...] — lowest-numbered part in current_batch
-# whose status is one of the given statuses. Empty current_batch falls back to
-# all parts (defensive).
+# whose status is one of the given statuses (sorted by the numeric suffix of
+# the id, not .parts[] array order). Empty current_batch falls back to all
+# parts (defensive).
 batch_first() {
   local statuses
   statuses="$(printf '%s\n' "$@" | jq -R . | jq -s .)"
   jq -r --argjson sts "$statuses" '
     (.current_batch // []) as $b
-    | .parts[]
-    | select(.status as $s | $sts | index($s))
-    | select(($b | length) == 0 or (.id as $id | $b | index($id)))
-    | .id
-    ' "$STATE_FILE" | head -1
+    | [ .parts[]
+        | select(.status as $s | $sts | index($s))
+        | select(($b | length) == 0 or (.id as $id | $b | index($id))) ]
+    | sort_by(.id | sub("^part-"; "") | tonumber)
+    | (.[0].id // empty)
+    ' "$STATE_FILE"
 }
 
 # batch_directive — shared routing for the executing and batch_verifying phases.

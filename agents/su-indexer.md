@@ -21,7 +21,7 @@ Before scanning, verify:
 
 - The output directory path ends in `.suhail/intel/`.
 - The repo root is a real directory (`Test-Path -PathType Container` / `[ -d "$root" ]`).
-- At least one manifest exists at the repo root: `.git/`, `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `Gemfile`, `mix.exs`, `*.csproj`, `composer.json`, `pom.xml`. Use Glob.
+- The repo root has a `.git` entry — check with Bash `[ -e .git ]`, which accepts both a directory and the plain pointer file a linked git worktree uses — OR at least one manifest exists at the repo root: `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `Gemfile`, `mix.exs`, `*.csproj`, `composer.json`, `pom.xml`. Use Glob for the manifests.
 
 If any check fails, write `.suhail/intel/blocker.md` per the Blocker protocol and stop. Do NOT write the four intel files.
 

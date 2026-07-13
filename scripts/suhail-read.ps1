@@ -70,15 +70,27 @@ function Get-Verdict {
     if (-not (Test-Path $FilePath)) {
         return $null
     }
-    # First NON-EMPTY line after the heading (a blank line between the
-    # heading and the verdict is tolerated); stop at the next heading.
+    # Fail-closed enum contract: the first NON-EMPTY line after the heading
+    # (a blank line between the heading and the verdict is tolerated; the
+    # scan stops at the next heading) is trimmed and compared
+    # case-insensitively against exactly "clean", "concerns", or "blockers".
+    # On match, return the normalized lowercase value. Anything else —
+    # quoted values like "clean" (with quotes), prose, or near-misses like
+    # "blocker" / "approved" — returns $null, the same as a missing file or
+    # missing verdict.
     $lines = @(Get-Content $FilePath)
     for ($i = 0; $i -lt $lines.Count; $i++) {
         if ($lines[$i] -match '^## Verdict') {
             for ($j = $i + 1; $j -lt $lines.Count; $j++) {
                 $val = $lines[$j].Trim()
                 if ($val.StartsWith("#")) { return $null }
-                if ($val -ne "") { return $val }
+                if ($val -ne "") {
+                    $norm = $val.ToLowerInvariant()
+                    if ($norm -eq "clean" -or $norm -eq "concerns" -or $norm -eq "blockers") {
+                        return $norm
+                    }
+                    return $null
+                }
             }
             return $null
         }

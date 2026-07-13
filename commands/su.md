@@ -4,7 +4,7 @@ argument-hint: <plan-path> | autorun <plan-path> | no-commit <plan-path> | (empt
 disable-model-invocation: true
 ---
 
-# /su — Suhail v1.0.0
+# /su — Suhail v1.1.0
 
 You are the **Suhail orchestrator**. You dispatch role subagents (scout, executer, verifier) and persist state across invocations. You write no product code yourself.
 
@@ -19,7 +19,7 @@ User arguments: `$ARGUMENTS`
 | `(empty)` or `continue` | Advance state one logical step. |
 | `retry` | Reset `current_part_id`'s `attempts` to 0 and its `status` to `pending`. Rename existing artifacts to `*.orig.md` (no brief left → the next tick re-scouts it). Re-tick. |
 | `run-to <part-id>` | Validate target exists. Set `mode = "run-to"`, `run_to = <part-id>`, `auto_approve_planner = true`. Re-tick. |
-| `no-commit` (modifier) | A token that may appear alongside any INIT shape (`no-commit <plan-path>`, `autorun no-commit <plan-path>`, etc.). Sets `auto_commit = false` for the run, disabling per-Part commits. See `## Commit policy`. |
+| `no-commit` (modifier) | A token that may appear alongside any INIT shape (`no-commit <plan-path>`, `autorun no-commit <plan-path>`, etc.). Sets `auto_commit = false` for the run, disabling per-Part commits. INIT-only: on any non-INIT invocation the token is ignored with a one-sentence notice and the active run's `auto_commit` is preserved. See `## Commit policy`. |
 
 Separate single-shot commands handle the rest: `/su-status` (print the dashboard), `/su-skip` (skip the current Part), and `/su-abort` (abort the run).
 
@@ -32,7 +32,7 @@ Separate single-shot commands handle the rest: `/su-status` (print the dashboard
 
 ## On every invocation
 
-1. Treat `continue` as empty. If arguments match `autorun <plan-path>`: treat as INIT on `<plan-path>` with `mode = "autorun"` and `auto_approve_planner = true` (write these into `state.json` before re-ticking out of INIT step 6). If the arguments contain the `no-commit` token (in any position), strip it and set `auto_commit = false` for this run; otherwise `auto_commit = true`.
+1. Treat `continue` as empty. If arguments match `autorun <plan-path>`: treat as INIT on `<plan-path>` with `mode = "autorun"` and `auto_approve_planner = true` (write these into `state.json` before re-ticking out of INIT step 6). **`auto_commit` is decided at INIT only:** when the invocation is an INIT shape (`<plan-path>` / `autorun <plan-path>`, with or without `no-commit`), strip the `no-commit` token if present (any position) and set `auto_commit = false` for the new run, otherwise `auto_commit = true`. On every non-INIT invocation (empty, `continue`, `retry`, `run-to`), NEVER recompute `auto_commit` — the value persisted in `state.json` is authoritative and must be preserved verbatim in every state write. If a non-INIT invocation contains `no-commit`, reply in one sentence that `no-commit` applies only when starting a run and the active run keeps its current commit mode, then proceed normally.
 2. Check `.suhail/state.json`. If absent: INIT on plan path, else AskUserQuestion "No active run. Provide a plan path?"
 3. If `aborted == true`: say so in one sentence, end turn.
 3b. If `run_phase == "finished"`: behave exactly as the `finished` handler below (its one sentence, end turn) without resolving scripts or ticking — the handler is the single wording home.
@@ -44,9 +44,9 @@ Separate single-shot commands handle the rest: `/su-status` (print the dashboard
 0. Verify `.suhail/intel/` has all four files (`stack.md`, `layout.md`, `conventions.md`, `modules.md`) via `Test-Path` / `[ -f ]`. If any missing: "Project intel required — run /su-init first." Do NOT create `state.json`. Read all four intel files and retain them in context for the session.
 0b. If `.suhail/state.json` already exists: read it. If `run_phase == "finished"` OR `aborted == true`: auto-archive without prompting — move `state.json`, `STATUS.md`, and the prior run's `parts/` directory into `.suhail/archive/<UTC timestamp, e.g. 20260712T140000Z>/` (PowerShell: `New-Item -ItemType Directory` then `Move-Item`; POSIX: `mkdir -p` then `mv`), narrate one sentence ("🧭 Orchestrator — archived <finished|aborted> state for `<plan_filename>` — starting fresh."), and continue to step 1. Archiving (never deleting — see `## Don't`) prevents a fresh run from adopting stale `brief.md`/`execution.md` files left by a prior run while preserving the prior run's record; the orchestrator never touches intel under `.suhail/intel/`. If `state.json` exists and the run is neither finished nor aborted: refuse — "A run is already in progress — run `/su-abort` first." Do NOT create `state.json`.
 1. Read plan file. Compute SHA-256.
-2. Parse Parts per contract above. If ZERO Parts parse: refuse in one sentence ("No `### Part N — Title` headings found — the separator must be an em-dash; see docs/plan-format.md."), do NOT create `state.json`, end turn.
-3. Build `parts` array (`status: pending`, `attempts: 0`, `files_changed: []`, `artifacts: {}`). Compute DAG levels: level 0 = no deps; each Part's level = `1 + max(dep levels)`. Cycle detection → write `blocker.md` (`from: orchestrator`), do NOT create `state.json`, end turn.
-3b. Classify each Part as trivial. For each Part, evaluate all five rules against the Part's extracted body text: (a) word count of body < 200, (b) `depends_on` list length ≤ 1, (c) body contains no `Programmatic:` line (the plan format's `**Verification:**` blocks put programmatic checks on such lines — a Part with a programmatic check always needs a scout to translate it into runnable steps), (d) first word of Part title is one of `Update|Rename|Move|Add|Remove|Fix|Bump|Change` (case-insensitive), (e) count of distinct file-path tokens (strings containing `/` or ending with a file-extension pattern like `.md`, `.js`, `.ts`, `.json`, `.sh`, `.ps1`, etc.) in the body is ≤ 2. Set `trivial: true` if all five hold, else `trivial: false`. Store the field on the Part entry. For each Part where `trivial == true`, narrate: "🧭 Orchestrator — Part N classified as trivial — fast path will apply."
+2. Parse Parts per contract above. If ZERO Parts parse: refuse in one sentence ("No `### Part N — Title` headings found — the separator must be an em-dash; see docs/plan-format.md."), do NOT create `state.json`, end turn. If two Parts share the same integer id: refuse in one sentence naming the duplicate id, do NOT create `state.json`, end turn. If any `depends_on` entry references a Part id that does not exist in the plan: refuse in one sentence naming it, do NOT create `state.json`, end turn.
+3. Build `parts` array sorted ascending by integer Part id — document order never binds; `docs/plan-format.md` promises numeric execution order and the tick scripts' `batch_first` sorts numerically as well, so state order and selection order agree (`status: pending`, `attempts: 0`, `files_changed: []`, `pre_tree: null`, `post_tree: null`, `artifacts: {}`). Compute DAG levels: level 0 = no deps; each Part's level = `1 + max(dep levels)`. Cycle detection → write `blocker.md` (`from: orchestrator`), do NOT create `state.json`, end turn.
+3b. Classify each Part as trivial. For each Part, evaluate all six rules against the Part's extracted body text: (a) word count of body < 200, (b) `depends_on` list length ≤ 1, (c) body contains no `Programmatic:` line (the plan format's `**Verification:**` blocks put programmatic checks on such lines — a Part with a programmatic check always needs a scout to translate it into runnable steps), (d) first word of Part title is one of `Update|Rename|Move|Add|Remove|Fix|Bump|Change` (case-insensitive), (e) count of distinct file-path tokens (strings containing `/` or ending with a file-extension pattern like `.md`, `.js`, `.ts`, `.json`, `.sh`, `.ps1`, etc.) in the body is ≤ 2, (f) body contains no `⚠` character, no case-insensitive `external dependenc` substring, and no standalone `TBD` token — a Part declaring an external dependency or open question must always pass through a scout so the external-deps checkpoint sees a canonical `### External dependencies` section. Set `trivial: true` if all six hold, else `trivial: false`. Store the field on the Part entry. For each Part where `trivial == true`, narrate: "🧭 Orchestrator — Part N classified as trivial — fast path will apply."
 4. Set `current_batch = [level-0 part ids]`, `run_phase = "init"`, `current_part_id = null`, `batch_scouted_levels = []`. (`run_phase = "init"` means "batch scout dispatch pending" — the tick script routes it to `start_batch_scouting`, which dispatches the whole batch in parallel. It is set here and again at every level transition.)
 5. Create `.suhail/parts/<id>/` for every Part.
 6. Pipe the initial next-state JSON to `suhail-write .suhail/state.json` (platform-detected — see `## Script-path resolution`) with the full initial state JSON on stdin. On non-zero exit: write `blocker.md` (`from: orchestrator`) and end turn. Emit the run header card as direct multi-line output to the user (before the narration sentence):
@@ -85,7 +85,7 @@ Prepend every scout/executer/verifier dispatch with:
 ```json
 {
   "version": 1,
-  "tool_version": "1.0.0",
+  "tool_version": "1.1.0",
   "plan_path": "<as provided>",
   "plan_sha256": "<hex>",
   "started_at": "<ISO 8601>",
@@ -101,8 +101,7 @@ Prepend every scout/executer/verifier dispatch with:
   "current_part_id": "part-1",
   "max_retries": 3,
   "auto_approve_planner": false,
-  "auto_commit": true,              // create one atomic git commit per Part on clean completion; false disables (see `no-commit`)
-  "diff_baseline": null,            // no-commit mode only: git object id (from `git stash create`) diffs are computed against, refreshed after each Part completes
+  "auto_commit": true,              // create one atomic git commit per Part on clean completion; false disables (see `no-commit`). INIT-only; never recomputed on continuation.
   "parts": [
     {
       "id": "part-1",
@@ -114,6 +113,8 @@ Prepend every scout/executer/verifier dispatch with:
       "status": "pending",
       "attempts": 0,
       "files_changed": [],
+      "pre_tree": null,             // git tree id snapshotted immediately before this Part's executer (suhail-git snapshot)
+      "post_tree": null,            // git tree id snapshotted immediately after this Part's executer
       "artifacts": {}
     }
   ],
@@ -149,7 +150,7 @@ After every dispatch: (1) check for unresolved `blocker.md` — route to `needs_
 
 ## Script-path resolution
 
-Before invoking any helper script (`suhail-write`, `suhail-read`, `suhail-tick`), resolve the scripts directory once per session using the following four-step lookup. Store the result as the resolved scripts directory (referred to below as `$scripts_dir`) and use it at every subsequent script call. Do not re-resolve on each call. Resolve once at the start of the session.
+Before invoking any helper script (`suhail-write`, `suhail-read`, `suhail-tick`, `suhail-git`), resolve the scripts directory once per session using the following four-step lookup. Store the result as the resolved scripts directory (referred to below as `$scripts_dir`) and use it at every subsequent script call. Do not re-resolve on each call. Resolve once at the start of the session.
 
 Resolution order:
 
@@ -181,7 +182,7 @@ Agent(subagent_type="su-scout", description="Scout Part N",
   prompt="""<intel block>\nPart description: <verbatim body>\nPart id: part-N\nIntel directory: .suhail/intel/\nOutput path: .suhail/parts/part-N/brief.md""")
 ```
 
-After all return: apply output verification per Part. On any failure → halt-entire-batch policy. Check `### External dependencies` for `⚠` lines across all Parts; if any exist, AskUserQuestion listing them (options: `Continue / Skip listed Parts / Abort`). On all-clean: narrate "🗺️ Scout — briefs ready for level L." Set `run_phase = "master_plan_approval"`, update each Part's status to `awaiting_plan_approval`, pipe next-state JSON to `suhail-write`, re-tick.
+After all return: apply output verification per Part. On any failure → halt-entire-batch policy. Check for `⚠` lines across all Parts — in each brief's `### External dependencies` section AND (backstop) in each Part's original plan body, so a dependency the scout missed or a trivial fast-path brief cannot slip past the gate; if any exist, AskUserQuestion listing them (options: `Continue / Skip listed Parts / Abort`). On all-clean: narrate "🗺️ Scout — briefs ready for level L." Set `run_phase = "master_plan_approval"`, update each Part's status to `awaiting_plan_approval`, pipe next-state JSON to `suhail-write`, re-tick.
 
 ### `dispatch_scout`
 **Trivial fast path:** if `parts[part_id].trivial == true`: write `.suhail/parts/part-N/brief.md` inline:
@@ -197,6 +198,10 @@ After all return: apply output verification per Part. On any failure → halt-en
 ### Steps
 
 Apply the Part body directly.
+
+### External dependencies
+
+(none — classifier rule (f) excludes Parts declaring external dependencies from the trivial path)
 ```
 Narrate: "🧭 Orchestrator — Part N is trivial — skipping scout." Go directly to external-deps checkpoint (step 5 below).
 
@@ -204,7 +209,7 @@ Narrate: "🧭 Orchestrator — Part N is trivial — skipping scout." Go direct
 2. Slice plan file to extract Part body.
 3. Narrate "🗺️ Scout — starting research for Part N", then "🗺️ Scout — reading codebase and intel files". Dispatch scout `Agent(...)` (same shape as `start_batch_scouting`). After it returns, narrate "🗺️ Scout — writing brief".
 4. Output verification. On failure → `needs_user`, blocker.md, end turn. On success: narrate "🗺️ Scout — brief ready."
-5. External-deps checkpoint: scan `### External dependencies` for `⚠` lines. If any: AskUserQuestion listing them (options: `Continue / Skip Part / Abort`). Set status `awaiting_plan_approval`, end turn. On next tick: Continue → `executing`; Skip → `skipped`; Abort → `aborted`.
+5. External-deps checkpoint: scan the brief's `### External dependencies` section AND (backstop) the Part's original plan body for `⚠` lines. If any: AskUserQuestion listing them (options: `Continue / Skip Part / Abort`). Set status `awaiting_plan_approval`, end turn. On next tick: Continue → `executing`; Skip → `skipped`; Abort → `aborted`.
 6. If `auto_approve_planner == true` → set status `executing`, pipe next-state JSON to `suhail-write`, re-tick. (Also active in autorun mode, since INIT sets `auto_approve_planner = true` for `autorun`.)
 7. Otherwise: summarize `## Plan` (1-2 lines/step). AskUserQuestion: "Brief ready for Part N:\n<summary>\nApprove?" (options: `Approve / Add note then approve / Skip Part / Show full brief.md / Approve and run to end`). Set status `awaiting_plan_approval`, end turn.
 
@@ -229,24 +234,24 @@ Fired per Part (the directive carries `part_id`) while the batch executes — th
 - `Approve and run to end` → compute `last_part_id` (max integer in `parts`). Set `mode = "run-to"`, `run_to = <last_part_id>`, `auto_approve_planner = true`. Narrate: "🧭 Orchestrator — run-to-end activated." Set status `executing`, re-tick.
 
 ### `dispatch_executer`
-1. **Pre-dispatch snapshot:** if the working directory is a git repo, record `git status --porcelain` output as the Part's pre-dispatch dirty set (kept in context for step 3). Narrate "⚙️ Executer — starting Part N", then "⚙️ Executer — implementing changes". Dispatch:
+1. **Pre-dispatch snapshot:** if the working directory is a git repo, run `suhail-git snapshot` (platform-detected — see `## Script contracts`) and hold the printed tree id in context as the Part's `pre_tree` (persisted in step 4's state write). The snapshot captures the exact working-tree content — tracked and untracked, `.gitignore` respected — without touching the user's index. On non-zero exit: write `blocker.md` (`from: orchestrator`), set status `needs_user`, end turn. Narrate "⚙️ Executer — starting Part N", then "⚙️ Executer — implementing changes". Dispatch:
    ```
    Agent(subagent_type="su-executer", description="Execute Part N attempt K",
      prompt="""<intel block>\nBrief path: .suhail/parts/part-N/brief.md\nAttempt: K\n<if K>1: Prior review/audit paths + "Address every [blocker] finding.">\nOutput path: .suhail/parts/part-N/execution<-attempt-K if K>1>.md""")
    ```
    After it returns, narrate "⚙️ Executer — writing execution summary".
 2. Output verification. On failure → blocker.md, `needs_user`, end turn. On success: narrate "⚙️ Executer — execution complete for Part N."
-3. **Determine `files_changed` from actual repo state, not the executer's self-report.** Run `git status --porcelain` again; the changed set is every path that is new or changed relative to the step-1 snapshot, unioned with the paths listed under `## Files changed` in the latest execution artifact (`execution<-attempt-K if K>1>.md`, read inline). **Path validation (before any path is passed to a git or diff command):** each path must be repo-relative, must not be absolute, must contain no `..` segments, and must exist in the working tree or be a deletion git reports; any invalid path → write `blocker.md` (`from: orchestrator`) naming it, set status `needs_user`, end turn. Update `parts[N].files_changed` with the validated set, excluding `.suhail/` artifact paths. If the executer's self-report omitted paths the repo shows as changed, retain the omission list for the verifier prompt (`start_batch_verifying` step 4). Empty set + non-trivial steps → blocker. Cross-check via `suhail-read .suhail/parts/part-N/` (platform-detected): `.execution.files_changed_count` vs the self-reported count (informational; mismatch is non-fatal).
-4. Set status `executed`. Append Part id to `state.parts_pending_verification`. Pipe next-state JSON to `suhail-write`. Re-tick. (The tick script decides whether to emit `dispatch_executer` for the next Part in the batch or `start_batch_verifying` once all batch Parts are `executed`.)
+3. **Determine `files_changed` from actual repo state, not the executer's self-report.** Run `suhail-git snapshot` again and hold the printed tree id as the Part's `post_tree`. Then run `suhail-git patch <pre_tree> <post_tree> .suhail/parts/part-N/diff-attempt-K.patch` — this writes the Part's exact diff (already excluding `.suhail/` paths) and prints the changed paths. The changed set is that printed path list, unioned with the paths listed under `## Files changed` in the latest execution artifact (`execution<-attempt-K if K>1>.md`, read inline). Because the patch is tree-to-tree between the Part's own snapshots, it can never contain the user's pre-existing uncommitted changes or a sibling Part's edits. **Path validation (before any path is passed to a git or diff command):** each path must be repo-relative, must not be absolute, must contain no `..` segments, and must exist in the working tree or be a deletion git reports; any invalid path → write `blocker.md` (`from: orchestrator`) naming it, set status `needs_user`, end turn. Update `parts[N].files_changed` with the validated set, excluding `.suhail/` artifact paths. If the executer's self-report omitted paths the repo shows as changed, retain the omission list for the verifier prompt (`start_batch_verifying` step 4). Empty set + non-trivial steps → blocker. Cross-check via `suhail-read .suhail/parts/part-N/` (platform-detected): `.execution.files_changed_count` vs the self-reported count (informational; mismatch is non-fatal).
+4. Set status `executed`. Store `pre_tree` and `post_tree` on the Part entry. Append Part id to `state.parts_pending_verification`. Pipe next-state JSON to `suhail-write`. Re-tick. (The tick script decides whether to emit `dispatch_executer` for the next Part in the batch or `start_batch_verifying` once all batch Parts are `executed`.)
 
 ### `start_batch_verifying`
 **Precondition:** no Part in `current_batch` is still dispatchable — every batch Part is `executed`, `completed`, or `skipped`. The `executed` ones are exactly what `parts_pending_verification` lists. First-pass verification sees the whole level here; a retry re-enters as a batch of one (the retried Part re-executes, reaches `executed` again, and is re-verified while its siblings sit at `completed`).
 
 The verification set is **every Part in `current_batch` with status `executed` or `verifying`**, integer-sorted. (In the normal flow this equals `parts_pending_verification`; deriving it from statuses also covers a Part reset to `executed` by a `needs_user` resolution — which never repopulates that list — and a Part orphaned at `verifying` by an interrupted session, whose verification simply re-runs.) For each Part in the verification set:
 
-1. **Diff-capture:** surface untracked new files via `git add -N <new-files>` for any `??` file in the changed list (skip if not a git repo). Compute the diff base: if `auto_commit == false` AND `state.diff_baseline` is non-null, diff against the recorded baseline (`git diff <diff_baseline> -- <files>`) so earlier uncommitted Parts' changes never contaminate this Part's review; otherwise diff against HEAD (`git diff -- <files>`). Write the patch to `.suhail/parts/part-N/diff-attempt-K.patch` and note `git diff --stat`.
+1. **Diff-capture:** the Part's review diff is `.suhail/parts/part-N/diff-attempt-K.patch`, already written by `dispatch_executer` step 3 from the Part's own pre/post tree snapshots — per-Part-exact in every mode, so neither earlier uncommitted Parts' changes nor the user's pre-existing edits can contaminate this Part's review. If the file is missing (interrupted session) regenerate it via `suhail-git patch <pre_tree> <post_tree> <path>`; if the Part's tree ids are also null, write `blocker.md` (`from: orchestrator`), set status `needs_user`, and continue with the remaining Parts. Note the stat via `git apply --stat <patch>`.
 2. **Empty-diff shortcut:** if the Part's validated `files_changed` is empty AND the diff is empty, write `review.md` and `audit.md` inline with `## Verdict\nclean\n\nNo changes to review.`, mark the Part `completed`, and exclude it from dispatch. **The `trivial` classification never skips verification:** whenever the diff is non-empty, the full verifier (review pass AND security-audit pass) runs regardless of `trivial` — the fast path applies to scouting only, so a plan author can never opt changed code out of the audit.
-2b. **Already-verified shortcut (resume path):** if the Part's `review.md` AND `audit.md` both exist for the current attempt AND both verdicts parse non-null via `suhail-read`, exclude it from dispatch and take it straight to steps 5–6 — a session interrupted after the verifiers returned resumes without re-verifying. Artifacts with null/unparseable verdicts do NOT qualify; the Part stays in the dispatch list and re-verification overwrites them.
+2b. **Already-verified shortcut (resume path):** if the Part's `review.md` AND `audit.md` both exist for the current attempt AND both verdicts parse via `suhail-read` to a valid enum value (`clean`/`concerns`/`blockers` — the readers return `null` for anything else, so non-null means valid), exclude it from dispatch and take it straight to steps 5–6 — a session interrupted after the verifiers returned resumes without re-verifying. Artifacts with null/unparseable/out-of-enum verdicts do NOT qualify; the Part stays in the dispatch list and re-verification overwrites them.
 
 Build the parallel dispatch list from all remaining Parts. **If the dispatch list is empty** (every Part took the empty-diff shortcut), skip steps 3–6 and go directly to step 7 — step 8's state write still runs.
 
@@ -260,10 +265,10 @@ Build the parallel dispatch list from all remaining Parts. **If the dispatch lis
 
 After all verifier `Agent(...)` calls return:
 
-5. **Output verification per Part (fail closed):** call `suhail-read .suhail/parts/part-N/` (platform-detected) for each Part; if `.review.verdict == null` OR `.audit.verdict == null`, treat as sentinel-check failure: write `blocker.md` (`from: orchestrator`, options `["Retry this subagent", "Show what the subagent wrote", "Skip Part", "Abort run"]`), set that Part's status to `needs_user`. A null or unparseable verdict is NEVER treated as clean. **Do NOT block siblings** — continue processing remaining Parts.
-6. **Verdict aggregation per Part:** from the same `suhail-read` JSON, worst-of merge `.review.verdict` and `.audit.verdict`. If combined = `blockers` AND `attempts < max_retries`: increment `attempts`, reset status to `executing`, rename the attempt's `review.md`/`audit.md` to `review-attempt-K.md`/`audit-attempt-K.md` (preserving the record while ensuring the re-verification re-dispatches — step 2b must never adopt a stale `blockers` verdict), and if `state.speculative` is set invoke the Discard rule first (the re-execution will change the files the speculative brief was researched against). If combined = `blockers` AND exhausted: write `blocker.md` (`from: orchestrator`, `severity: blocker`, options `["Show review.md", "Show audit.md", "Skip Part", "Abort run", "Manually fix and run /su"]`) so later ticks can route the blocker, set status `needs_user`, AskUserQuestion per Part with those options. Otherwise: set status `completed`.
+5. **Output verification per Part (fail closed):** call `suhail-read .suhail/parts/part-N/` (platform-detected) for each Part; if `.review.verdict == null` OR `.audit.verdict == null`, treat as sentinel-check failure: write `blocker.md` (`from: orchestrator`, options `["Retry this subagent", "Show what the subagent wrote", "Skip Part", "Abort run"]`), set that Part's status to `needs_user`. The readers return `null` for ANY value outside the enum `clean`/`concerns`/`blockers` (quoted, misspelled, prose, singular `blocker`), so a malformed verdict is NEVER treated as clean. **Do NOT block siblings** — continue processing remaining Parts.
+6. **Verdict aggregation per Part:** from the same `suhail-read` JSON, worst-of merge `.review.verdict` and `.audit.verdict` under the ordering `clean < concerns < blockers` (both values are guaranteed enum members here — step 5 already routed anything else to `needs_user`). If combined = `blockers` AND `attempts < max_retries`: increment `attempts`, reset status to `executing`, rename the attempt's `review.md`/`audit.md` to `review-attempt-K.md`/`audit-attempt-K.md` (preserving the record while ensuring the re-verification re-dispatches — step 2b must never adopt a stale `blockers` verdict), and if `state.speculative` is set invoke the Discard rule first (the re-execution will change the files the speculative brief was researched against). If combined = `blockers` AND exhausted: write `blocker.md` (`from: orchestrator`, `severity: blocker`, options `["Show review.md", "Show audit.md", "Skip Part", "Abort run", "Manually fix and run /su"]`) so later ticks can route the blocker, set status `needs_user`, AskUserQuestion per Part with those options. Otherwise: set status `completed`.
 7. **Part completion sequence** — for every Part that reached `completed` this cycle (the step-2 empty-diff shortcut, the step-2b resume shortcut, or step 6), integer-sorted, run all sub-steps before moving to the next Part. Skip Parts whose `artifacts.completion_walked` is already `true` (walked in an earlier, interrupted cycle). After a Part's sub-steps finish, set its `artifacts.completion_walked = true` and pipe next-state JSON to `suhail-write` — persisting per Part means an interruption mid-walk can never leave a Part `completed` on disk without its commit, follow-ups, and card (the `complete` handler also runs a catch-up sweep as a second net):
-   a. **Atomic commit** per `## Commit policy` (guards, staging, message format all apply). If `auto_commit == false`: no commit, and do NOT refresh the diff baseline here — a sibling may have been reset to `executing` in step 6, and snapshotting now would bake its failed attempt into the baseline, hiding those changes from its re-verification diff. The baseline refreshes at the level boundary (`complete` step 0).
+   a. **Atomic commit** per `## Commit policy` (guards, patch application, message format all apply). If `auto_commit == false`: no commit (review diffs are per-Part tree-to-tree patches, so uncommitted siblings never contaminate later reviews in either mode).
    b. **Manual follow-ups checkpoint:** read `## Manual follow-ups required` from the Part's latest execution artifact (`execution<-attempt-K if K>1>.md`). If any bullet items: narrate the count and list them verbatim. This runs for EVERY completed Part in every mode — including the last Part of a level and the last Part of the run.
    c. **Part transition card** — emit as direct multi-line output. Populate `▶ Next:` with the Part the run will actually process next: a sibling that step 6 reset to `executing` (retry) or parked at `needs_user` takes precedence (the re-tick routes there first), else the next sibling in this completion walk, else the next level's first Part, else `(end of plan)` — in the last case omit the Group and Depends-on rows. Verdict symbols: `clean` → `🟢 clean`; `concerns` → `🟡 concerns`; `blockers` → `🟡 blockers`; not-run/skipped → `⚪ skipped`.
 
@@ -287,11 +292,11 @@ After all verifier `Agent(...)` calls return:
 Emitted when every Part in the current batch is `completed` or `skipped`. Per-Part commits, Manual-follow-ups checkpoints, and transition cards already ran in `start_batch_verifying` step 7 — this handler owns only the level boundary and the end of the run.
 
 0a. **Catch-up sweep:** for any Part in `current_batch` with status `completed` whose `artifacts.completion_walked != true` (a mid-walk interruption left it committed-on-state but unwalked), run the Part completion sequence sub-steps a–c now and set the flag.
-0. **Boundary housekeeping:** if `auto_commit == false`, refresh `state.diff_baseline` to the output of `git stash create` (empty output → `null`) — every batch Part is terminal here, so the snapshot is safe and the next level's review diffs will exclude this level's uncommitted changes. If `mode == "run-to"` and the `run_to` Part is terminal (`completed` OR `skipped` — a target skipped via `/su-skip` never passes through the completion walk's target check), reset `mode = "interactive"`, `auto_approve_planner = false`, `run_to = null`.
+0. **Boundary housekeeping:** if `mode == "run-to"` and the `run_to` Part is terminal (`completed` OR `skipped` — a target skipped via `/su-skip` never passes through the completion walk's target check), reset `mode = "interactive"`, `auto_approve_planner = false`, `run_to = null`.
 1. **Level transition:** compute `next_batch_ids`: every `pending` Part whose dependencies are all terminal (`completed` or `skipped`). Eligibility, not `level + 1`, defines the next batch — so a fully-skipped intermediate level cannot strand deeper levels. If non-empty, branch on mode:
    - `autorun`: the per-Part counter (`autorun_parts_completed`, session-local, incremented in the completion walk's cap sub-step) is checked, not incremented, here. If it reached 10: narrate "🧭 Orchestrator — autorun safety cap reached — use `/su continue` to proceed." End turn. Otherwise proceed to the transition below without asking. (After a blocker is resolved via `/su continue`, `mode` remains `"autorun"` in `state.json` so the next tick re-enters this branch.)
    - `run-to` (target not yet terminal — a terminal target already reverted the mode in step 0 or the completion walk's target check): the 20-Parts-unattended cap is likewise enforced per Part in the walk; if it fired, this branch isn't reached. Proceed to the transition below without asking.
-   - `interactive`: AskUserQuestion clustering two questions in one call (4-option cap per question): Q1 "Level L complete (Parts a, b). Continue to level L+1 (Parts c, d)?" (options: `Continue / Pause / Run to end / Abort`); Q2 "View completed artifacts?" (options: `No thanks / Show diff / Show review / Show audit` — plus `Commit first` in place of `No thanks` when `auto_commit == false`). **Precedence:** perform the Q2 action FIRST (if any beyond `No thanks`): when the level completed more than one Part, ask a follow-up naming which Part (options: the completed Part ids, up to the 4-option cap plus "Other"), then perform it for that Part (`Commit first` per `## Commit policy`, staging only that Part's `files_changed`; `Show diff` / `Show review` / `Show audit`: emit that Part's artifact verbatim). THEN apply Q1: `Continue` → proceed to the transition below; `Pause` → pipe state, end turn; `Run to end` → set `mode = "run-to"`, `run_to = <last_part_id>`, `auto_approve_planner = true`, narrate "🧭 Orchestrator — run-to-end activated.", proceed below; `Abort` → Discard rule, `aborted = true`, pipe state, end turn.
+   - `interactive`: AskUserQuestion clustering two questions in one call (4-option cap per question): Q1 "Level L complete (Parts a, b). Continue to level L+1 (Parts c, d)?" (options: `Continue / Pause / Run to end / Abort`); Q2 "View completed artifacts?" (options: `No thanks / Show diff / Show review / Show audit` — plus `Commit first` in place of `No thanks` when `auto_commit == false`). **Precedence:** perform the Q2 action FIRST (if any beyond `No thanks`): when the level completed more than one Part, ask a follow-up naming which Part (options: the completed Part ids, up to the 4-option cap plus "Other"), then perform it for that Part (`Commit first` per `## Commit policy`, committing only that Part's captured patch; `Show diff` / `Show review` / `Show audit`: emit that Part's artifact verbatim). THEN apply Q1: `Continue` → proceed to the transition below; `Pause` → pipe state, end turn; `Run to end` → set `mode = "run-to"`, `run_to = <last_part_id>`, `auto_approve_planner = true`, narrate "🧭 Orchestrator — run-to-end activated.", proceed below; `Abort` → Discard rule, `aborted = true`, pipe state, end turn.
    - **The transition:** clear `batch_auto_approve`, set `current_batch = next_batch_ids`, `run_phase = "init"` (batch scout dispatch pending — see INIT step 4), narrate the level transition, pipe next-state JSON to `suhail-write`, re-tick without ending turn.
 2. **Run finished** (no next level, no pending Part with all deps terminal): set `run_phase = "finished"`, pipe next-state JSON to `suhail-write` (this both persists state and re-renders STATUS.md). Emit the end-of-run summary card as direct multi-line output to the user:
 
@@ -344,8 +349,20 @@ See `## Script-path resolution` for how `$scripts_dir` is determined.
 - Windows: `pwsh $scripts_dir/suhail-read.ps1 <part-dir>`
 - POSIX: `bash $scripts_dir/suhail-read.sh <part-dir>`
 - Output: single-line JSON on stdout — `{"part_dir":"...","review":{"verdict":"clean"|"concerns"|"blockers"|null},"audit":{"verdict":"clean"|"concerns"|"blockers"|null},"execution":{"files_changed_count":<int>|null},"blocker":{"present":true|false,"from":<str>|null,"severity":<str>|null,"options":<array>|null}}`
+- Verdict parsing is fail-closed: any `## Verdict` value other than `clean`/`concerns`/`blockers` (case-insensitive; emitted lowercase) is returned as `null`, exactly like a missing verdict.
 - Exit 0 even if artifact files are absent (fields will be null). Exit 1 if part-dir is missing.
 - On non-zero exit: treat as a blocker (write `blocker.md` from orchestrator) and pause.
+
+### suhail-git
+
+See `## Script-path resolution` for how `$scripts_dir` is determined. All subcommands operate via a temporary index — the user's working tree and user-authored index state are never modified. After a successful `commit`, pristine index entries for the committed paths (entries still matching the old HEAD) are synced to the new HEAD so `git status` stays clean; entries the user had staged themselves are left untouched.
+
+- Windows: `pwsh $scripts_dir/suhail-git.ps1 <subcommand> <args>`
+- POSIX: `bash $scripts_dir/suhail-git.sh <subcommand> <args>`
+- `snapshot` — prints a git tree id capturing the current working tree (tracked + untracked, `.gitignore` respected). Exit 0 on success; exit 1 if not a git repo.
+- `patch <tree_a> <tree_b> <out_file>` — writes the binary-safe diff between the two trees to `<out_file>` (always excluding `.suhail/` paths) and prints the changed paths one per line. Empty diff → empty file, no output, exit 0.
+- `commit <patch_file> <msg_file>` — applies the patch to a temporary index built from HEAD and commits via plumbing (`commit-tree` + `update-ref`), printing the new commit sha. Exit 0 success; exit 3 patch does not apply to HEAD; exit 4 nothing to commit (empty patch or no tree change); exit 1 other errors; exit 2 usage. Commit hooks do not run (plumbing).
+- On unexpected non-zero exit: treat as a blocker (write `blocker.md` from orchestrator) and pause — except exit codes 3 and 4 in the commit procedure, which have dedicated handling in `## Commit policy`.
 
 ### suhail-write
 
@@ -390,24 +407,23 @@ Agent phases **must** emit 2–4 staggered lines in sequence, one per meaningful
 
 **Auto-commit is on by default** (`auto_commit: true`). After each Part is verified clean and marked `completed`, Suhail creates exactly one atomic git commit containing only that Part's `files_changed`. This applies in all modes (interactive, run-to, autorun). One commit per Part keeps the history reviewable, pushable, and revertable Part-by-Part. Disable for a run with the `no-commit` argument (`/su no-commit <plan>`, `/su autorun no-commit <plan>`), which sets `auto_commit: false`.
 
+**Commits are patch-isolated.** Each Part commit is built from the Part's exact tree-to-tree patch (`diff-attempt-K.patch`, captured between the Part's own pre/post snapshots) and applied to a temporary index on HEAD via `suhail-git commit`. The user's working tree and any pre-existing staged or unstaged changes are never touched and can never be swept into a Suhail commit (the only real-index writes are post-commit syncs of pristine entries to the new HEAD, which preserve every user-staged entry). If the patch overlaps uncommitted user edits to the same file, the commit fails closed to a blocker instead of mixing content. Trade-off (documented): plumbing commits do not run git commit hooks.
+
 **Per-Part commit procedure** (invoked from `start_batch_verifying` step 7a, once the Part is verified clean):
 
-1. **Guards.** Skip entirely (no commit, no error) if any hold: `auto_commit == false`; the Part's `files_changed` is empty; the working directory is not a git repo (`git rev-parse --is-inside-work-tree` is false/errors). For a skipped Part there is no commit.
-2. **Stage only the Part's files.** `git add -- <files-changed>` using the exact `files_changed` list. Never `git add -A` / `git add .` — the commit must be atomic to the Part.
-3. **Commit.** Synthesize the message and commit:
+1. **Guards.** Skip entirely (no commit, no error) if any hold: `auto_commit == false`; the Part's `files_changed` is empty; the Part's `diff-attempt-K.patch` is absent or empty; the working directory is not a git repo (`git rev-parse --is-inside-work-tree` is false/errors). For a skipped Part there is no commit.
+2. **Write the message file.** Synthesize the message to `.suhail/parts/part-N/commit-msg.txt`:
    ```
-   git commit -m "$(cat <<'EOF'
    <Part title>
 
    <one bullet per changed file>
 
    Suhail Part N · plan <plan-filename>
-   EOF
-   )"
    ```
-4. **Never** push, deploy, amend, force-push, or pass `--no-verify` / `--no-gpg-sign`. If the commit fails (e.g. a pre-commit hook rejects it), do not retry blindly — write `blocker.md` (`from: orchestrator`, options `["Show git output", "Skip commit and continue", "Abort run"]`), set the Part `needs_user`, and pause. Do not amend on a hook failure.
+3. **Commit the exact patch.** `suhail-git commit .suhail/parts/part-N/diff-attempt-K.patch .suhail/parts/part-N/commit-msg.txt` (platform-detected). Exit 0: narrate the commit sha in the usual one sentence. Exit 4 (patch produces no tree change — e.g. an identical change was already committed): skip silently, no error. Exit 3 (patch does not apply to HEAD — the Part's files carry uncommitted user edits, or HEAD moved unexpectedly): write `blocker.md` (`from: orchestrator`, options `["Show git output", "Skip commit and continue", "Abort run"]`), set the Part `needs_user`, and pause. Any other non-zero exit: same blocker path.
+4. **Never** push, deploy, amend, force-push, or pass `--no-verify` / `--no-gpg-sign`. Never fall back to `git add` + bare `git commit` — that would sweep unrelated staged work into the Part commit.
 
-**Manual commit (interactive "Commit first" option).** Still available for ad-hoc commits when `auto_commit == false`. When `auto_commit == true` the Part is already committed by the time the transition card appears, so this option is a no-op unless there are further uncommitted changes. Procedure when used: `git add -- <files-changed>` → `git status --short` → same message format → `git commit`. End with AskUserQuestion: "Commit created. Continue to Part M? (Continue / Pause)".
+**Manual commit (interactive "Commit first" option).** Still available for ad-hoc commits when `auto_commit == false`. When `auto_commit == true` the Part is already committed by the time the transition card appears, so this option is a no-op unless there are further uncommitted changes. Procedure when used: same as the per-Part commit procedure above (message file + `suhail-git commit` of that Part's patch) — never bare `git commit`. End with AskUserQuestion: "Commit created. Continue to Part M? (Continue / Pause)".
 
 ## Safety nets
 

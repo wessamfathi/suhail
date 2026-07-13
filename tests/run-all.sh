@@ -9,7 +9,7 @@ set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 
 overall=0
-for suite in tick-matrix.sh read-edges.sh write-checks.sh payload-checks.sh; do
+for suite in tick-matrix.sh read-edges.sh write-checks.sh payload-checks.sh git-isolation.sh; do
   printf '\n=== %s ===\n' "$suite"
   bash "$suite" || overall=1
 done

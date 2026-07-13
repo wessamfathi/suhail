@@ -2,11 +2,12 @@
 # read-edges.sh — edge-case fixtures for suhail-read.{sh,ps1}.
 #
 # Every case is fed to both readers (ps1 when pwsh is on PATH) and must
-# produce identical, jq-valid JSON. Cases reproduce the public-release
-# review findings: quoted verdicts (JSON-escaping), multi-word verdicts
-# (space preservation), blank line before the verdict, a heading with no
-# verdict at all, CRLF blocker frontmatter, and attempt-numbered execution
-# artifacts.
+# produce identical, jq-valid JSON. Verdict cases lock in the fail-closed
+# enum contract: only clean/concerns/blockers (case-insensitive, emitted
+# lowercase) are accepted; quoted verdicts, prose, and near-misses yield
+# null. Remaining cases cover blank line before the verdict, a heading with
+# no verdict at all, CRLF blocker frontmatter, and attempt-numbered
+# execution artifacts.
 
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
@@ -40,6 +41,29 @@ printf '## Verdict\n\n## Notes\nunrelated\n' > "$dh/review.md"
 di="$(mkpart indentedheading)"
 printf '## Verdict\n\n  ## Notes\nunrelated\n' > "$di/review.md"
 
+# --- fail-closed enum cases ------------------------------------------------------
+
+dap="$(mkpart approved)"
+printf '## Verdict\napproved\n' > "$dap/review.md"
+
+dsg="$(mkpart singularblocker)"
+printf '## Verdict\nblocker\n' > "$dsg/review.md"
+
+dmc="$(mkpart mixedcaseclean)"
+printf '## Verdict\nClean\n' > "$dmc/review.md"
+
+dmb="$(mkpart uppercaseblockers)"
+printf '## Verdict\nBLOCKERS\n' > "$dmb/review.md"
+
+dts="$(mkpart trailingspaces)"
+printf '## Verdict\nclean   \n' > "$dts/review.md"
+
+dvp="$(mkpart validthenprose)"
+printf '## Verdict\nclean\nThis part looks solid overall and needs no follow-up.\n' > "$dvp/review.md"
+
+dpv="$(mkpart prosethenvalid)"
+printf '## Verdict\nsome prose\nclean\n' > "$dpv/review.md"
+
 # --- CRLF blocker frontmatter ---------------------------------------------------
 
 dc="$(mkpart crlf)"
@@ -66,9 +90,16 @@ printf -- '---\nfrom: orchestrator\nseverity: blocker\noptions: ["Retry"]\n---\n
 
 for lang in "${LANGS[@]}"; do
   assert_read_field "plain verdict"              "$lang" "$d"  '.review.verdict' '"clean"'
-  assert_read_field "quoted verdict escapes"     "$lang" "$dq" '.review.verdict' '"\"clean\""'
-  assert_read_field "two-word verdict keeps space" "$lang" "$dw" '.review.verdict' '"needs work"'
+  assert_read_field "quoted verdict -> null (fail closed)" "$lang" "$dq" '.review.verdict' 'null'
+  assert_read_field "two-word prose verdict -> null (fail closed)" "$lang" "$dw" '.review.verdict' 'null'
   assert_read_field "blank line then verdict"    "$lang" "$db" '.review.verdict' '"clean"'
+  assert_read_field "approved -> null (not in enum)"       "$lang" "$dap" '.review.verdict' 'null'
+  assert_read_field "singular blocker -> null (not in enum)" "$lang" "$dsg" '.review.verdict' 'null'
+  assert_read_field "Clean normalizes to lowercase"        "$lang" "$dmc" '.review.verdict' '"clean"'
+  assert_read_field "BLOCKERS normalizes to lowercase"     "$lang" "$dmb" '.review.verdict' '"blockers"'
+  assert_read_field "trailing spaces still accepted"       "$lang" "$dts" '.review.verdict' '"clean"'
+  assert_read_field "valid first line then prose accepted" "$lang" "$dvp" '.review.verdict' '"clean"'
+  assert_read_field "prose first line -> null even if enum follows" "$lang" "$dpv" '.review.verdict' 'null'
   assert_read_field "heading as last line -> null" "$lang" "$dl" '.review.verdict' 'null'
   assert_read_field "next heading, no verdict -> null" "$lang" "$dh" '.review.verdict' 'null'
   assert_read_field "indented next heading -> null"    "$lang" "$di" '.review.verdict' 'null'
@@ -87,7 +118,7 @@ done
 # Exit codes and non-empty output are asserted first so a case where BOTH
 # readers crash can never pass as vacuous ""=="" parity.
 if [[ "$HAVE_PWSH" -eq 1 ]]; then
-  for dir in "$d" "$dq" "$dw" "$db" "$dl" "$dh" "$di" "$dc" "$da" "$do_" "$dm" "$ds"; do
+  for dir in "$d" "$dq" "$dw" "$db" "$dl" "$dh" "$di" "$dap" "$dsg" "$dmc" "$dmb" "$dts" "$dvp" "$dpv" "$dc" "$da" "$do_" "$dm" "$ds"; do
     if ! sh_raw="$(bash "$SCRIPTS_DIR/suhail-read.sh" "$dir")"; then
       fail "reader parity: $(basename "$dir")" "sh reader exited non-zero"; continue
     fi

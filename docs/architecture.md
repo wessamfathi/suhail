@@ -95,9 +95,9 @@ The script interface is documented in the `## Script contracts` section of `comm
 
 ## Why the orchestrator lives in the slash command, not as a subagent
 
-The orchestrator's logic is in `commands/su.md` (the slash command body) rather than `agents/suhail.md` (a subagent, removed in v0.7.2). The reason is a Claude Code platform constraint: **subagents invoked via the Agent tool cannot themselves spawn further subagents.** Only the top-level session can dispatch subagents. If the orchestrator were a subagent, it would have no way to call the su-scout / su-executer / su-verifier that it coordinates.
+The orchestrator's logic is in `commands/su.md` (the slash command body) rather than `agents/suhail.md` (a subagent, removed in v0.7.2). The original reason was a Claude Code platform constraint: at the time, **subagents invoked via the Agent tool could not themselves spawn further subagents**, so an orchestrator-as-subagent had no way to call the su-scout / su-executer / su-verifier it coordinates. Nested subagents have existed since Claude Code v2.1.172 (depth-limited), but the decision stands, because the binding constraint today is a different one: **`AskUserQuestion` — and interactive gates generally — is available only to the top-level session.** The orchestrator is checkpoint-driven (master-plan approval, blocker resolution, level boundaries); a subagent orchestrator could now dispatch roles, but it could never pause and ask the user anything.
 
-By putting the orchestrator into the slash command, invoking `/su` makes the top-level session take on the orchestrator role for the turn. The top-level session does have access to the Agent tool and can dispatch the role subagents (su-scout, su-executer, su-verifier), which run in isolated contexts. The pipeline tree is exactly two levels deep: top-level session → role subagent.
+By putting the orchestrator into the slash command, invoking `/su` makes the top-level session take on the orchestrator role for the turn. The top-level session has both the Agent tool and `AskUserQuestion`: it dispatches the role subagents (su-scout, su-executer, su-verifier), which run in isolated contexts, and runs every user-facing gate itself. The pipeline tree is exactly two levels deep: top-level session → role subagent.
 
 Cost: the orchestrator's instructions (a few hundred lines) live in the top-level session's context for each turn — see "Context window impact" below.
 
@@ -155,8 +155,8 @@ This guards against the common mistake of editing the plan mid-run and assuming 
 
 The orchestrator has `Bash` access for three things:
 1. SHA-256 the plan file.
-2. Compute diffs (`git diff`) to pass to the su-verifier.
-3. Run `git add` and `git commit` to create one atomic commit per Part when a Part is verified clean (on by default; disabled per run with the `no-commit` argument), and on demand when the user chooses "Commit first" at a Part-completion prompt. Only the Part's own changed files are staged.
+2. Snapshot the working tree before and after each executer run — a temporary-index `git write-tree` that includes untracked files, respects `.gitignore`, and never touches the user's real index. The Part's diff is the tree-to-tree patch between the two snapshots (excluding `.suhail/`), passed to the su-verifier; review diffs are per-Part-exact in every mode.
+3. Create one atomic commit per Part when a Part is verified clean (on by default; disabled per run with the `no-commit` argument at INIT), and on demand when the user chooses "Commit first" at a Part-completion prompt. The commit applies the Part's patch to a temporary index on HEAD via plumbing (`commit-tree` + `update-ref`), so pre-staged or dirty user changes can never be swept into a Suhail commit; if a Part edits a file the user already had uncommitted edits in, the commit fails closed to a blocker instead of mixing content. After a successful commit, index entries the user had not modified are synced to the new HEAD so `git status` stays clean — user-staged entries are never touched. Trade-off: plumbing commits bypass git commit hooks.
 
 It does NOT use Bash for arbitrary code execution. It does NOT deploy. It does NOT push, amend, or force-push.
 

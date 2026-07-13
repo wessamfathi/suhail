@@ -54,6 +54,7 @@ P2_EXEC="$(part 2 executing 0)"
 P2_EXECD="$(part 2 executed 0)"
 P2_SKIP="$(part 2 skipped 0)"
 P2_DONE="$(part 2 completed 0)"
+P3_PENDING="$(part 3 pending 0)"
 
 for lang in "${LANGS[@]}"; do
   # --- init routes to the parallel batch-scout handler -----------------------
@@ -109,6 +110,15 @@ for lang in "${LANGS[@]}"; do
   give_brief "$d" 2
   assert_directive "executing: sibling executed, current executing -> dispatch_executer" "$lang" "$d/state.json" \
     '{"action":"dispatch_executer","part_id":"part-2"}'
+
+  # --- numeric ordering: parts listed out of order must still pick lowest ------
+  d="$(mkstate executing null false '["part-3","part-1"]' "[$P3_PENDING, $P1_PENDING]")"
+  assert_directive "executing: parts out of numeric order -> lowest id (part-1) first" "$lang" "$d/state.json" \
+    '{"action":"dispatch_scout","part_id":"part-1"}'
+
+  d="$(mkstate batch_scouting null false '["part-3","part-1"]' "[$P3_PENDING, $P1_PENDING]")"
+  assert_directive "batch_scouting: parts out of numeric order -> lowest id (part-1) first" "$lang" "$d/state.json" \
+    '{"action":"dispatch_scout","part_id":"part-1"}'
 
   # --- all executed -> batch verification -------------------------------------
   d="$(mkstate executing part-2 false '["part-1","part-2"]' "[$P1_EXECD, $P2_EXECD]")"

@@ -40,7 +40,7 @@ You also ensure the following directories exist (create if missing, do not touch
 
 1. **In-flight check.** If `.suhail/state.json` exists AND its top-level `aborted` is not `true` AND its `run_phase` is not a terminal value (`finished` or `completed`), a Suhail run is already in flight. End with one sentence: "A Suhail run is in-flight (`.suhail/state.json`). Finish or abort it before re-running /su-init." Do not dispatch. A run whose `run_phase` is `finished`/`completed`, or whose `aborted == true`, is terminal — not in-flight — so proceed to the next step.
 
-2. **Project detection.** If there is no `.git/` and no root manifest (`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `Gemfile`, `mix.exs`, `*.csproj`, `composer.json`, `pom.xml`), end with one sentence: "No project detected at the current directory. Run /su-init from a project root."
+2. **Project detection.** If there is no `.git` entry (directory or file — in a linked git worktree `.git` is a plain pointer file) and no root manifest (`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `Gemfile`, `mix.exs`, `*.csproj`, `composer.json`, `pom.xml`), end with one sentence: "No project detected at the current directory. Run /su-init from a project root."
 
 3. **Existence check.** Look for `.suhail/intel/stack.md`, `.suhail/intel/layout.md`, `.suhail/intel/conventions.md`, `.suhail/intel/modules.md`.
 

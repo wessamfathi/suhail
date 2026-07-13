@@ -68,11 +68,14 @@ fi
 # ---------------------------------------------------------------------------
 
 # Extract ## Verdict value from review.md or audit.md.
-# Takes the first NON-EMPTY line after the heading (a blank line between the
-# heading and the verdict is tolerated), stops at the next heading, trims
-# edge whitespace while preserving internal spaces, and JSON-escapes the
-# value via jq so quotes/backslashes in a verdict can never emit invalid
-# JSON. Prints "null" (JSON null literal) if the file or verdict is absent.
+# Fail-closed enum contract: the first NON-EMPTY line after the heading (a
+# blank line between the heading and the verdict is tolerated; the scan
+# stops at the next heading) is trimmed of edge whitespace and compared
+# case-insensitively against exactly "clean", "concerns", or "blockers".
+# On match, the normalized lowercase value is emitted as a JSON string.
+# Anything else — quoted values like "clean" (with quotes), prose, or
+# near-misses like "blocker" / "approved" — prints "null" (JSON null
+# literal), the same as a missing file or missing verdict.
 extract_verdict() {
   local file="$1"
   if [[ ! -f "$file" ]]; then
@@ -89,11 +92,11 @@ extract_verdict() {
       if (length($0)) { print; exit }
     }
   ' "$file")"
-  if [[ -z "$verdict" ]]; then
-    echo "null"
-  else
-    printf '%s' "$verdict" | jq -Rs '.'
-  fi
+  verdict="$(printf '%s' "$verdict" | tr '[:upper:]' '[:lower:]')"
+  case "$verdict" in
+    clean|concerns|blockers) printf '"%s"\n' "$verdict" ;;
+    *) echo "null" ;;
+  esac
 }
 
 # Count lines matching ^- ` under ## Files changed heading up to next ## heading.

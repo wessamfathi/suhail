@@ -13,14 +13,14 @@ Suhail itself is domain-agnostic. It does not assume a language, framework, or s
 ## Why Suhail (vs. just pasting the plan into a chat)
 
 - **Bounded context on long plans.** Subagents communicate through files, never through the conversation — a 30-Part plan costs the orchestrator the same context as a 3-Part one.
-- **Runs survive sessions.** State lives in `.suhail/state.json`; close the session mid-run and `/su` picks up exactly where it stopped.
+- **Runs survive sessions.** State lives in `.suhail/state.json`; close the session mid-run and `/suhail:su` picks up exactly where it stopped.
 - **Independent review + security audit per Part.** Every non-empty diff gets a reviewer pass and a security-audit pass from a separate agent that didn't write the code.
 - **One atomic commit per Part.** Each verified Part lands as its own commit, so you can review, push, or revert work Part-by-Part.
 
 What a run looks like (abridged):
 
 ```
-> /su .suhail/plans/search-filters.md
+> /suhail:su .suhail/plans/search-filters.md
 
 🧭 Orchestrator — initialized with 4 Parts across 2 levels — scouting level 0 (3 Parts) in parallel.
 🗺️ Scout — briefs ready for level 0.
@@ -39,11 +39,11 @@ What a run looks like (abridged):
   ▸ Level 0 complete (Parts 1–3). Continue to level 1 (Part 4)?
 ```
 
-In the default interactive mode, Suhail stops at every approval gate — the master plan approval for each dependency level and the level-boundary checkpoint after it completes — and every Part gets its own transition card and commit. For linear plans (each Part depending on the previous one), that means a pause after every Part. `/su autorun` and `/su run-to` advance without pausing.
+In the default interactive mode, Suhail stops at every approval gate — the master plan approval for each dependency level and the level-boundary checkpoint after it completes — and every Part gets its own transition card and commit. For linear plans (each Part depending on the previous one), that means a pause after every Part. `/suhail:su autorun` and `/suhail:su run-to` advance without pausing.
 
 ## Requirements
 
-- **Claude Code with plugin support** — plugin install is the only distribution channel.
+- **Claude Code 2.1.207 or later** (the minimum version Suhail is tested against) — plugin install is the only distribution channel.
 - **POSIX (macOS/Linux):** `bash` and [`jq`](https://jqlang.org/) on PATH (`brew install jq` / `apt install jq`). The helper scripts refuse to run without jq.
 - **Windows:** PowerShell — `pwsh` (7+) if you have it, otherwise the preinstalled Windows PowerShell 5.1 works.
 - **git** — required for diff capture and per-Part commits (runs in non-git directories with those features disabled).
@@ -61,7 +61,7 @@ Suhail's repo is its own plugin marketplace. Install with two commands inside Cl
 /plugin install suhail@suhail
 ```
 
-This pulls the commands, agents, and helper scripts as a versioned plugin, so there is nothing to copy by hand. Update with `/plugin marketplace update suhail` then `/reload-plugins`; uninstall with `/plugin uninstall suhail@suhail`. Depending on your Claude Code version, plugin commands may resolve under the plugin namespace — if `/su` doesn't autocomplete, try `/suhail:su` (the same applies to every command below). Once installed, add `.suhail/` to any target repo's `.gitignore` (Suhail writes its run state there).
+This pulls the commands, agents, and helper scripts as a versioned plugin, so there is nothing to copy by hand. Update with `/plugin marketplace update suhail` then `/reload-plugins`; uninstall with `/plugin uninstall suhail@suhail`. Plugin-installed commands are namespaced: invoke them as `/suhail:su`, `/suhail:su-init`, and so on — that is how every command below is written. The unqualified forms (`/su`, `/su-init`, …) apply only when the command files are loaded as project or user commands, e.g. when developing from a checkout of this repo. Once installed, add `.suhail/` to any target repo's `.gitignore` (Suhail writes its run state there).
 
 **Upgrading from Northstar (≤ 0.15)?** The project was renamed at v1.0.0. Remove the old plugin (`/plugin uninstall northstar@northstar`, `/plugin marketplace remove northstar`), delete any pre-0.15 hand-copied files (`~/.claude/commands/ns*.md`, `~/.claude/commands/northstar*.md`, `~/.claude/commands/scripts/northstar-*`, `~/.claude/agents/ns-*.md`), then install as above. The state directory moved from `.northstar/` to `.suhail/`; in-flight Northstar runs cannot be resumed by Suhail.
 
@@ -70,37 +70,37 @@ This pulls the commands, agents, and helper scripts as a versioned plugin, so th
 After installing Suhail, open your project folder and scan it once:
 
 ```
-/su-init
+/suhail:su-init
 ```
 
-`/su-init` dispatches the `su-indexer` subagent to read manifests, conventions docs (CLAUDE.md / AGENTS.md / README), and the directory tree, then caches the result under `.suhail/intel/` as four files: `stack.md`, `layout.md`, `conventions.md`, `modules.md`. Downstream agents read this cache as their baseline so per-Part research stays focused on what the Part actually touches.
+`/suhail:su-init` dispatches the `su-indexer` subagent to read manifests, conventions docs (CLAUDE.md / AGENTS.md / README), and the directory tree, then caches the result under `.suhail/intel/` as four files: `stack.md`, `layout.md`, `conventions.md`, `modules.md`. Downstream agents read this cache as their baseline so per-Part research stays focused on what the Part actually touches.
 
-`/su` and `/su-discover` refuse to run until this intel exists. Re-run `/su-init` (or `/su-init refresh`) after stack changes, monorepo restructures, or major new modules.
+`/suhail:su` and `/suhail:su-discover` refuse to run until this intel exists. Re-run `/suhail:su-init` (or `/suhail:su-init refresh`) after stack changes, monorepo restructures, or major new modules.
 
 ## Discover a plan
 
 Suhail can interview you and draft a plan to achieve your goals:
 
 ```
-/su-discover
+/suhail:su-discover
 ```
 
-`/su-discover` is an interactive slash command that interviews you about the vision, scope, dependencies, and per-Part detail, then writes a markdown plan in the exact format `/su` expects. The command orchestrates three phases: Phase 0 delegates to `su-discover-scout` (haiku, read-only, no Write tool) which silently scans the repo and returns a structured context summary; Phases 1 through 4 conduct the multi-turn interview in the top-level session; Phase 5 delegates to `su-discover-planner` (sonnet) which consumes the answers file and writes the plan. Hand the output path to `/su` to execute it. Optional argument: a target output path (defaults to `.suhail/plans/<slug>.md`).
+`/suhail:su-discover` is an interactive slash command that interviews you about the vision, scope, dependencies, and per-Part detail, then writes a markdown plan in the exact format `/suhail:su` expects. The command orchestrates three phases: Phase 0 delegates to `su-discover-scout` (haiku, read-only, no Write tool) which silently scans the repo and returns a structured context summary; Phases 1 through 4 conduct the multi-turn interview in the top-level session; Phase 5 delegates to `su-discover-planner` (sonnet) which consumes the answers file and writes the plan. Hand the output path to `/suhail:su` to execute it. Optional argument: a target output path (defaults to `.suhail/plans/<slug>.md`).
 
 ## Quickstart
 
-After install (and once `/su-init` has run, see above), point `/su` at your own plan file in any repo:
+After install (and once `/suhail:su-init` has run, see above), point `/suhail:su` at your own plan file in any repo:
 
 ```
-/su path/to/your-plan.md
+/suhail:su path/to/your-plan.md
 ```
 
-The first invocation parses the plan, creates `.suhail/state.json`, and immediately scouts the first dependency level in parallel — the first thing you're asked is the **master plan approval** once those briefs are ready (approve all, review Parts individually, read the full briefs, or abort). Each subsequent `/su` call advances the run by one logical step.
+The first invocation parses the plan, creates `.suhail/state.json`, and immediately scouts the first dependency level in parallel — the first thing you're asked is the **master plan approval** once those briefs are ready (approve all, review Parts individually, read the full briefs, or abort). Each subsequent `/suhail:su` call advances the run by one logical step.
 
 To verify the toolchain, run the bundled self-test from a clone of this repo:
 
 ```
-/su fixtures/test_plan.md
+/suhail:su fixtures/test_plan.md
 ```
 
 Expected result (about five minutes, detailed at the top of the fixture): three Parts across two levels; a mandatory ⚠ external-dependency pause before Part 2 executes; two marker files (`.suhail-smoketest.txt` containing `suhail smoke ok`, `.suhail-smoketest-2.txt` containing `suhail smoke ok 2`); full artifact sets (`brief.md`, `execution.md`, `review.md`, `audit.md`, captured diff) under `.suhail/parts/part-1/` and `part-2/`; and a synthetic inline brief for the trivial Part 3 — whose non-empty diff still gets a real verifier run (review + audit), since no classification can skip the audit.
@@ -109,18 +109,18 @@ Expected result (about five minutes, detailed at the top of the fixture): three 
 
 | Command | Purpose |
 |---|---|
-| `/su-init` | Scan the project and cache stack / layout / conventions / modules under `.suhail/intel/`. Required precursor for `/su` and `/su-discover`. |
-| `/su-init refresh` | Force a rescan and overwrite existing intel. |
-| `/su <plan-path>` | Initialize a new run against a plan file. A finished or aborted previous run is auto-archived to `.suhail/archive/`; an in-flight run refuses with "A run is already in progress — run `/su-abort` first." Refuses if intel is missing. |
-| `/su` | Continue from current state. Advances one logical step per tick. |
-| `/su-status` | Print the human-readable status dashboard (`.suhail/STATUS.md`). Read-only. |
-| `/su-skip` | Mark the current Part `skipped` and advance to the next. |
-| `/su retry` | Reset the current Part's retry counter and re-run from `scouting`. |
-| `/su run-to <part-id>` | Auto-advance through Parts up to and including `<part-id>`. Pauses only on blockers; bypasses approval gates for the duration. |
-| `/su-abort` | Set the run status to `aborted`. Does not delete artifacts. |
-| `/su-discover [output-path]` | Interview the user and write a Suhail-format plan file. Delegates Phase 0 grounding to `su-discover-scout` (haiku, read-only) and Phase 5 plan-writing to `su-discover-planner` (sonnet). Independent of any active run; requires intel. |
-| `/su-next` | Advance the current run by exactly one logical step, auto-approving the two sanctioned gates: the per-Part brief gate and the batch master-plan approval — note the latter approves **every brief in the level at once**. Performs no INIT, never loops. Requires an active run. |
-| `/su-auto [plan-path]` | Auto-detect the most recent plan and run it in autorun mode. |
+| `/suhail:su-init` | Scan the project and cache stack / layout / conventions / modules under `.suhail/intel/`. Required precursor for `/suhail:su` and `/suhail:su-discover`. |
+| `/suhail:su-init refresh` | Force a rescan and overwrite existing intel. |
+| `/suhail:su <plan-path>` | Initialize a new run against a plan file. A finished or aborted previous run is auto-archived to `.suhail/archive/`; an in-flight run refuses with "A run is already in progress — run `/su-abort` first." Refuses if intel is missing. |
+| `/suhail:su` | Continue from current state. Advances one logical step per tick. |
+| `/suhail:su-status` | Print the human-readable status dashboard (`.suhail/STATUS.md`). Read-only. |
+| `/suhail:su-skip` | Mark the current Part `skipped` and advance to the next. |
+| `/suhail:su retry` | Reset the current Part's retry counter and re-run from `scouting`. |
+| `/suhail:su run-to <part-id>` | Auto-advance through Parts up to and including `<part-id>`. Pauses only on blockers; bypasses approval gates for the duration. |
+| `/suhail:su-abort` | Set the run status to `aborted`. Does not delete artifacts. |
+| `/suhail:su-discover [output-path]` | Interview the user and write a Suhail-format plan file. Delegates Phase 0 grounding to `su-discover-scout` (haiku, read-only) and Phase 5 plan-writing to `su-discover-planner` (sonnet). Independent of any active run; requires intel. |
+| `/suhail:su-next` | Advance the current run by exactly one logical step, auto-approving the two sanctioned gates: the per-Part brief gate and the batch master-plan approval — note the latter approves **every brief in the level at once**. Performs no INIT, never loops. Requires an active run. |
+| `/suhail:su-auto [plan-path]` | Auto-detect the most recent plan and run it in autorun mode. |
 
 ## How a run executes
 
@@ -182,18 +182,18 @@ Add `.suhail/` to your target repo's `.gitignore`.
 ## Safety
 
 - The **su-executer never pushes or deploys**. It flags deploys under "Manual follow-ups required" in `execution.md` for you to run. Command governance (justification for destructive/network commands, the `## Commands run` record) is covered in the Security model above and in [`SECURITY.md`](SECURITY.md).
-- **Atomic per-Part commits (on by default).** After a Part is verified clean, the orchestrator creates one git commit containing only that Part's changed files — derived from actual `git status`, not the executer's self-report — so you can review, push, or revert each Part's commit on its own. Skipped Parts and non-git directories are never committed. The orchestrator never pushes, deploys, amends, or force-pushes. Disable for a run with `no-commit` (e.g. `/su no-commit <plan>` or `/su autorun no-commit <plan>`); with auto-commit off, the interactive "Commit first" option still lets you commit on demand.
+- **Atomic per-Part commits (on by default).** After a Part is verified clean, the orchestrator creates one git commit from that Part's exact patch: it snapshots the working tree before and after the executer runs and commits only the difference, via git plumbing, without ever touching your staged or unstaged work (after each commit, index entries you hadn't modified are synced to the new HEAD so `git status` stays clean). Pre-existing staged or unstaged work of yours is never swept into a Suhail commit; if a Part edits a file you already had uncommitted edits in, the commit fails closed to a blocker instead of mixing content. Trade-off: Part commits bypass git commit hooks. Skipped Parts and non-git directories are never committed. The orchestrator never pushes, deploys, amends, or force-pushes. Disable for a run with `no-commit` at INIT (e.g. `/suhail:su no-commit <plan>` or `/suhail:su autorun no-commit <plan>`); continuations keep the run's commit setting, and with auto-commit off the interactive "Commit first" option still lets you commit on demand.
 - The **su-verifier** runs two passes: a review pass (correctness, regressions, convention drift) and an audit pass (security, injection, secrets, input validation). The audit runs for every non-empty diff — no plan classification can skip it. Project-specific risks travel via the su-scout's `Domain risks worth flagging to auditor` section in `brief.md`. Domain knowledge is never hardcoded into the su-verifier.
 
 ## Troubleshooting
 
-**"A run is already in progress — run `/su-abort` first."**: a previous run is still in flight. Use `/su-status` to inspect it, `/su` to continue it, or `/su-abort` to end it — after which the next `/su <plan-path>` archives its artifacts to `.suhail/archive/` and starts fresh.
+**"A run is already in progress — run `/su-abort` first."**: a previous run is still in flight. Use `/suhail:su-status` to inspect it, `/suhail:su` to continue it, or `/suhail:su-abort` to end it — after which the next `/suhail:su <plan-path>` archives its artifacts to `.suhail/archive/` and starts fresh.
 
 **"jq is required but not found on PATH"**: the POSIX helper scripts hard-require jq. `brew install jq` (macOS) or `apt install jq` (Debian/Ubuntu), then re-run.
 
 **"Plan file changed since last run"**: the plan's SHA differs from the recorded one. Choose "Re-parse" (Suhail rebuilds the Part list; in-flight Parts may be invalidated) or "Continue with cached structure" (proceed with the parts list from `state.json`).
 
-**Su-verifier keeps re-dispatching su-executer**: there's a finding the su-executer cannot fix. After three attempts the orchestrator hands control back; read the latest `review.md` / `audit.md` and either resolve manually, edit the plan and `/su retry`, or `/su-skip`.
+**Su-verifier keeps re-dispatching su-executer**: there's a finding the su-executer cannot fix. After three attempts the orchestrator hands control back; read the latest `review.md` / `audit.md` and either resolve manually, edit the plan and `/suhail:su retry`, or `/suhail:su-skip`.
 
 **Artifacts under `.suhail/parts/<id>/`** are your friend. They're the persistent record of every reasoning step. Open them any time.
 
@@ -207,4 +207,4 @@ MIT. See [`LICENSE`](LICENSE).
 
 ## Status
 
-Suhail v1.0.0. Telemetry: none. Issues and PRs welcome.
+Suhail v1.1.0. Telemetry: none. Issues and PRs welcome.

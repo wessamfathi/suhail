@@ -2,10 +2,23 @@
 
 All notable changes to Suhail (formerly Northstar) are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] — 2026-07-13
+
+Correctness hardening: per-Part commits are rebuilt on exact patch isolation, verdict parsing fails closed, and the trivial fast path can no longer swallow risk markers.
+
+### Fixed
+- **Verdict readers fail closed.** `suhail-read` returns a null verdict for any `## Verdict` value other than `clean` / `concerns` / `blockers` (case-insensitive accept, lowercase emit); the orchestrator treats a null verdict as a blocker, never as clean.
+- **Trivial fast path hardened.** Parts containing `⚠`, an `External dependencies` block, or `TBD` are never classified trivial; the external-dependencies checkpoint also scans the original Part body as a backstop.
+- **`batch_first` selects by numeric Part id** in both tick scripts, not array order; INIT rejects duplicate Part ids and builds the parts array numerically sorted.
+- **`/su-init` detects linked git worktrees:** project detection accepts `.git` as a plain file as well as a directory.
 
 ### Added
 - Feature-request issue form (`.github/ISSUE_TEMPLATE/feature_request.yml`) alongside the existing bug-report form.
+
+### Changed
+- **Per-Part commits are built from exact patches.** The orchestrator snapshots the working tree before and after each executer run (a temporary-index `git write-tree` — includes untracked files, respects `.gitignore`, never touches your real index); the Part's diff is the tree-to-tree patch between the snapshots (excluding `.suhail/`), and the commit applies that patch to a temporary index on HEAD via plumbing (`commit-tree` + `update-ref`). Pre-staged or dirty user changes can never be swept into a Suhail commit; if a Part edits a file you already had uncommitted edits in, the commit fails closed to a blocker instead of mixing content; sibling Parts editing the same file commit cleanly in sequence. Trade-off: Part commits bypass git commit hooks. Review diffs are per-Part-exact in every mode; the no-commit `diff_baseline` mechanism (`git stash create`) is gone.
+- **`no-commit` is INIT-only.** Continuations preserve `state.auto_commit`; passing `no-commit` mid-run gets a one-sentence notice, never a silent reset.
+- **Docs use the namespaced plugin command forms.** Installed via the marketplace, commands are `/suhail:su`, `/suhail:su-init`, etc. — mandatory Claude Code plugin behavior, not version-dependent. Unqualified `/su` applies only when the command files are loaded as project/user commands (e.g. developing in this repo). The README also declares the minimum tested Claude Code version (2.1.207).
 
 ## [1.0.0] — 2026-07-12
 
