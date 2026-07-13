@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest an improvement to Suhail — a new capability, a workflow change, or a rough edge worth smoothing.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Suhail deliberately stays small: markdown and shell, bounded context, no telemetry, no new dependencies without strong justification. Requests that fit those constraints are much easier to accept — `docs/architecture.md` and `docs/decisions.md` explain the lines we hold.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or friction
+      description: What are you trying to do with Suhail that is awkward, slow, or impossible today? Describe the situation, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: What you'd like to happen. Concrete is better — an example plan snippet, command invocation, or narration line if you have one.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Where the change would land, best guess.
+      options:
+        - Orchestrator / slash commands (commands/)
+        - Role subagents (agents/)
+        - Helper scripts (scripts/)
+        - Plan format
+        - Docs
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or workarounds
+      description: What you do today instead, or other approaches you considered.
