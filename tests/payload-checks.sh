@@ -144,10 +144,11 @@ for s in scripts/*.sh tests/*.sh; do
   assert_eq "executable bit: $s" "100755" "$mode"
 done
 
-# forbidden internal artifacts must not ship
+# forbidden internal artifacts must not ship — tracked-in-git is what ships;
+# a git-ignored working file (e.g. a local MEMORY.md) is fine
 for f in MEMORY.md northstar_project_quality_report.pdf public-release-review.md \
          public-release-hardening.md public-readiness-fixes.md; do
-  if [[ -e "$f" ]]; then fail "forbidden artifact absent: $f" "present in tree"; else pass "forbidden artifact absent: $f"; fi
+  if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then fail "forbidden artifact not tracked: $f" "tracked in git"; else pass "forbidden artifact not tracked: $f"; fi
 done
 if compgen -G "*.pdf" >/dev/null; then fail "no PDFs at repo root" "$(ls -- *.pdf)"; else pass "no PDFs at repo root"; fi
 for d in .suhail .claude; do
