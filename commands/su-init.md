@@ -77,7 +77,7 @@ You also ensure the following directories exist (create if missing, do not touch
    )
    ```
 
-7. **Output verification.** After return, FIRST check for an indexer blocker — before any sentinel check, because the indexer's contract writes blocked STUB intel files that would otherwise satisfy the checklist: if `.suhail/intel/blocker.md` exists without a `resolution:` line, OR any intel file's body is the blocked marker `Blocked — see blocker.md`, surface the blocker via AskUserQuestion using the options in its frontmatter plus "Other (free text)" and end the turn — do NOT declare success. Otherwise run the following verification checklist. For each file:
+7. **Output verification.** After return, FIRST check for an indexer blocker — before any sentinel check, because the indexer's contract writes blocked STUB intel files that would otherwise satisfy the checklist: if `.suhail/intel/blocker.md` exists without a `resolution:` line, OR any intel file's body is the blocked marker `Blocked — see blocker.md`, surface the blocker via AskUserQuestion using the options in its frontmatter — the tool auto-appends a free-text "Other" — and end the turn — do NOT declare success. Otherwise run the following verification checklist. For each file:
    1. File exists. Use Bash `[ -f path ]` (POSIX) / `Test-Path path` (PowerShell), or Read.
    2. File is non-empty. A zero-byte or whitespace-only file is a failure.
    3. Required sentinel headings are present. Use Grep.
@@ -90,7 +90,7 @@ You also ensure the following directories exist (create if missing, do not touch
    | `.suhail/intel/modules.md` | `## Modules` |
 
    On any failure, treat it as a missing artifact:
-   - If `.suhail/intel/blocker.md` exists without a `resolution:` line, surface it via AskUserQuestion using the options in the blocker's frontmatter plus "Other (free text)".
+   - If `.suhail/intel/blocker.md` exists without a `resolution:` line, surface it via AskUserQuestion using the options in the blocker's frontmatter — the tool auto-appends a free-text "Other".
    - Otherwise write `.suhail/intel/blocker.md` yourself with frontmatter `from: orchestrator`, `severity: blocker`, options `["Retry the indexer", "Show what the indexer wrote", "Abort"]`, plus a one-paragraph note naming the failed check (e.g. "Indexer returned without writing modules.md" or "stack.md is missing the required `## Commands` section"). Then end the turn with AskUserQuestion.
 
    Narrate: "📦 Indexer — verification failed."

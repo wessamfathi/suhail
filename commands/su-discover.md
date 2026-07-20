@@ -261,7 +261,7 @@ Use Bash (`pwd` / `$PWD`) to construct the absolute path to the answers file bef
 After `su-discover-planner` returns, check the result:
 
 - **Success:** if the return message starts with `su-discover-planner: plan written to` (the exact sentinel the planner's contract emits), the plan file has been written. Proceed to the completion card below.
-- **Planner blocker:** if the return message does not indicate success, check whether `.suhail/discover/blocker.md` exists (using Bash `Test-Path` or `Read`). If it exists, surface its contents to the user via AskUserQuestion using the options from its frontmatter plus "Other (free text)".
+- **Planner blocker:** if the return message does not indicate success, check whether `.suhail/discover/blocker.md` exists (using Bash `Test-Path` or `Read`). If it exists, surface its contents to the user via AskUserQuestion using the options from its frontmatter — the tool auto-appends a free-text "Other".
 - **Generic failure:** if neither the success message is present nor a blocker file exists, emit in chat: "discover-planner did not confirm a successful write. You may need to re-run /su-discover." Then AskUserQuestion: "Retry / Abort".
 
 #### 5f — Completion card
