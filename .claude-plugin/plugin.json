@@ -1,7 +1,7 @@
 {
   "name": "suhail",
   "description": "Generic plan-orchestration pipeline for Claude Code — walks any structured plan file to completion via scout/executer/verifier subagents with state persistence and per-Part review checkpoints.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": {
     "name": "Wessam Ibrahim",
     "email": "wessamfathi@gmail.com"

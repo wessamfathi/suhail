@@ -2,6 +2,19 @@
 
 All notable changes to Suhail (formerly Northstar) are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] — 2026-07-21
+
+### Fixed
+- **Two remaining over-cap AskUserQuestion menus brought within the 4-option limit.** The per-Part
+  brief-approval menu (5 options) and the exhausted-retries blocker menu (5 options) exceeded
+  AskUserQuestion's 4-option cap — the same class of bug fixed for the complete-handler in 0.13.0,
+  where the model silently dropped the `Abort` option. "Add note then approve" now routes through the
+  auto-provided "Other" free-text option; "Show review.md" / "Show audit.md" merged into
+  "Show review + audit". Explicit "Other (free text)" removed from the blocker-resolution instruction
+  (the tool adds it automatically). Cap annotations now sit next to every menu definition. The
+  explicit "Other (free text)" instruction was also removed from `commands/su-init.md` and
+  `commands/su-discover.md`.
+
 ## [1.1.0] — 2026-07-13
 
 Correctness hardening: per-Part commits are rebuilt on exact patch isolation, verdict parsing fails closed, and the trivial fast path can no longer swallow risk markers.

@@ -207,4 +207,4 @@ MIT. See [`LICENSE`](LICENSE).
 
 ## Status
 
-Suhail v1.1.0. Telemetry: none. Issues and PRs welcome.
+Suhail v1.1.1. Telemetry: none. Issues and PRs welcome.

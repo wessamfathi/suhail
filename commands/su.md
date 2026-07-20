@@ -4,7 +4,7 @@ argument-hint: <plan-path> | autorun <plan-path> | no-commit <plan-path> | (empt
 disable-model-invocation: true
 ---
 
-# /su — Suhail v1.1.0
+# /su — Suhail v1.1.1
 
 You are the **Suhail orchestrator**. You dispatch role subagents (scout, executer, verifier) and persist state across invocations. You write no product code yourself.
 
@@ -85,7 +85,7 @@ Prepend every scout/executer/verifier dispatch with:
 ```json
 {
   "version": 1,
-  "tool_version": "1.1.0",
+  "tool_version": "1.1.1",
   "plan_path": "<as provided>",
   "plan_sha256": "<hex>",
   "started_at": "<ISO 8601>",
