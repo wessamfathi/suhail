@@ -119,7 +119,7 @@ Compose the plan text in memory following the invariants below. Do not invent co
 
 3. **Consecutive Part numbering from 1.** Parts are emitted in the order they appear in `## Parts`, numbered 1, 2, 3, … regardless of how the user worded them in the interview. If the source numbers are not consecutive (e.g. the user listed 1, 2, 4), re-number them starting at 1 and adjust all `Depends on` references accordingly.
 
-4. **Em-dash separator (U+2014).** Every Part heading uses the form `### Part N — <title>`. The separator character is the Unicode em-dash `—` (U+2014). A single space appears on each side of the em-dash. Do not use an ASCII hyphen-minus (`-`), an en-dash (`–`), or a double-hyphen (`--`). This is not cosmetic. The orchestrator's Part detector regex requires the em-dash, and any other character causes the Part to be silently skipped.
+4. **H3 heading with em-dash separator (U+2014).** Every Part heading uses the form `### Part N — <title>`, at H3 level — exactly three `#` characters. An H2 heading (`## Part N — <title>`) is NOT a Part heading: the orchestrator's parser treats H2 as a plan-level section boundary, so a plan whose Parts are H2 parses to ZERO Parts and is refused at INIT. The separator character is the Unicode em-dash `—` (U+2014). A single space appears on each side of the em-dash. Do not use an ASCII hyphen-minus (`-`), an en-dash (`–`), or a double-hyphen (`--`). This is not cosmetic. The orchestrator's Part detector regex requires the em-dash, and any other character causes the Part to be silently skipped.
 
 5. **Dependency phrasing.** Inside each Part's body, include a `**Depends on:**` line. Acceptable forms (all parse correctly):
    - `**Depends on:** (none)` — when the Part has no prerequisites.
@@ -144,6 +144,8 @@ Compose the plan text in memory following the invariants below. Do not invent co
    - Omit `## Critical files reference` unless the answers file explicitly names key files; if it does, include it.
 
 ### Step 3 — Write the plan file
+
+**Format self-check (mandatory):** before calling `Write`, scan the composed text and verify (a) every Part heading matches `^### Part \d+ — ` — three `#`, one space each side of the em-dash — and (b) no line begins with `## Part `. If either check fails, correct the composed text and re-check. Never write a plan that fails this self-check.
 
 Call `Write` with the composed plan text and the `output_path`. If the parent directory does not exist, this will fail — block with a clear message rather than silently producing nothing.
 
@@ -180,6 +182,7 @@ Do not write a partial plan. If preflight fails, write `blocker.md` and stop. Yo
 - Do not write anything other than the single plan file (and `blocker.md` on failure). No research notes, no summaries, no extra markdown files.
 - Do not invent answers not captured in the answers file. If the answers file is vague, emit what it says and add a note in `## Open questions` rather than filling gaps with assumptions.
 - Do not use an ASCII hyphen-minus (`-`), en-dash (`–`), or double-hyphen (`--`) as the Part-heading separator. Only the Unicode em-dash `—` (U+2014) is accepted by the parser.
+- Do not emit Part headings at any level other than H3. `## Part N — <title>` (H2) is silently dropped by the parser — Parts are always `### Part N — <title>`.
 - Do not place plan-level H2 sections (`## Open questions`, `## Critical files reference`, etc.) inside the body of the last Part. They must appear after the last `### Part N —` heading.
 - Do not print the plan body in chat in place of writing the file. The Write tool call is non-optional; an inline response is a contract violation the orchestrator will reject as a missing artifact.
 - Do not talk to the user, ask questions, or run shell commands. You are headless and write-only.
