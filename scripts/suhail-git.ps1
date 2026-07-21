@@ -244,7 +244,19 @@ function Invoke-Commit {
             exit 4
         }
 
-        $newCommit = "$(git commit-tree $tree -p HEAD -F $MsgFile)".Trim()
+        # commit-tree is plumbing and ignores commit.gpgsign — honor it
+        # explicitly so Suhail Part commits sign (and verify on forges) like
+        # porcelain commits. EAP flip: --get exits non-zero when unset.
+        $prev = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        try {
+            $gpgSign = "$(git config --get --type=bool commit.gpgsign 2>$null)".Trim()
+        } finally {
+            $ErrorActionPreference = $prev
+        }
+        $signArgs = @()
+        if ($gpgSign -eq "true") { $signArgs = @("-S") }
+        $newCommit = "$(git commit-tree @signArgs $tree -p HEAD -F $MsgFile)".Trim()
         if ($LASTEXITCODE -ne 0 -or $newCommit -eq "") { Fail1 "commit-tree failed" }
         git update-ref HEAD $newCommit
         if ($LASTEXITCODE -ne 0) { Fail1 "update-ref failed" }

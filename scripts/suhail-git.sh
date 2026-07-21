@@ -145,7 +145,13 @@ cmd_commit() {
     exit 4
   fi
 
-  new_commit="$(git commit-tree "$tree" -p HEAD -F "$msg_file")" || die1 "commit-tree failed"
+  # commit-tree is plumbing and ignores commit.gpgsign — honor it explicitly
+  # so Suhail Part commits sign (and verify on forges) like porcelain commits.
+  local sign_opt=""
+  if [[ "$(git config --get --type=bool commit.gpgsign 2>/dev/null || true)" == "true" ]]; then
+    sign_opt="yes"
+  fi
+  new_commit="$(git commit-tree ${sign_opt:+-S} "$tree" -p HEAD -F "$msg_file")" || die1 "commit-tree failed"
   git update-ref HEAD "$new_commit" || die1 "update-ref failed"
 
   # Reconcile the REAL index. Without this, every committed path whose real

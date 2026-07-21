@@ -285,6 +285,37 @@ for lang in "${LANGS[@]}"; do
   assert_eq "11: user-staged index blob untouched [$lang]" "$idx_before" \
     "$(git -C "$r" rev-parse :0:big.txt)"
 
+  # --- 12. commit signs when commit.gpgsign is true ---------------------------
+  # commit-tree ignores commit.gpgsign; suhail-git must pass -S itself. Uses a
+  # throwaway SSH signing key so no gpg/agent setup is needed.
+  if command -v ssh-keygen >/dev/null 2>&1; then
+    r="$base/case12/repo"; make_repo "$r"
+    unsigned_head="$(git -C "$r" cat-file commit HEAD)"
+    if printf '%s' "$unsigned_head" | grep -q '^gpgsig'; then
+      fail "12: base commit unsigned with gpgsign false [$lang]" "unexpected gpgsig"
+    else
+      pass "12: base commit unsigned with gpgsign false [$lang]"
+    fi
+    ssh-keygen -q -t ed25519 -N "" -f "$base/case12/signkey"
+    git -C "$r" config gpg.format ssh
+    git -C "$r" config user.signingkey "$base/case12/signkey"
+    git -C "$r" config commit.gpgsign true
+    run_git "$lang" "$r" snapshot; A="$GIT_OUT"
+    printf 'signed change\n' >>"$r/target.txt"
+    run_git "$lang" "$r" snapshot; B="$GIT_OUT"
+    run_git "$lang" "$r" patch "$A" "$B" "$base/case12/p.patch"
+    printf 'part: signed change\n' >"$base/case12/msg.txt"
+    run_git "$lang" "$r" commit "$base/case12/p.patch" "$base/case12/msg.txt"
+    assert_eq "12: signed commit exits 0 [$lang]" "0" "$GIT_CODE"
+    if git -C "$r" cat-file commit HEAD | grep -q '^gpgsig'; then
+      pass "12: commit object carries gpgsig [$lang]"
+    else
+      fail "12: commit object carries gpgsig [$lang]" "no gpgsig header on HEAD"
+    fi
+  else
+    echo "NOTE: ssh-keygen not found — signing case (12) skipped"
+  fi
+
   # --- 9. not a repo → snapshot exits 1 --------------------------------------
   d="$base/case9"; mkdir -p "$d"
   run_git "$lang" "$d" snapshot
